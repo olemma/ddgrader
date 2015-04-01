@@ -1,0 +1,8 @@
+*.pyc
+*~
+
+# also pycharm?
+__pycache__
+
+# pycharm
+.idea
