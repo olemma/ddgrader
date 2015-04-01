@@ -48,6 +48,14 @@ Your partner's ranking (scale below): Excellent
 
 """
 
+student_ex4 = """Name: Alex Knaust
+EID1:
+CS login:
+Email:
+Unique Number:
+Ranking (scale below):
+"""
+
 
 def student_matches():
     s1 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 7)
@@ -61,7 +69,7 @@ def student_matches():
 
 
 def test_student_one():
-    s = ddgrader.Student.from_sb_match(ddgrader.studentblock_regex.search(student_ex1))
+    s = ddgrader.Student.from_text(student_ex1)
     eq_(s.name, 'wellow yu')
     eq_(s.eid, 'wy51326')
     eq_(s.cslogin, 'pajamaa')
@@ -71,7 +79,7 @@ def test_student_one():
 
 
 def test_student_two():
-    s = ddgrader.Student.from_sb_match(ddgrader.studentblock_regex.search(student_ex2))
+    s = ddgrader.Student.from_text(student_ex2)
     eq_(s.name, 'alex knaust')
     eq_(s.eid, 'awk333')
     eq_(s.cslogin, 'awknaust')
@@ -79,6 +87,11 @@ def test_student_two():
     eq_(s.num, '342134')
     eq_(s.ranking, 'very good')
 
+
+def test_student_empty_fields():
+    s = ddgrader.Student.from_text(student_ex4)
+    eq_(s.name, 'alex knaust')
+    eq_(s.ranking, None)
 
 def check_student_three_one(s):
     eq_(s.name, 'jeff white')
@@ -99,10 +112,7 @@ def check_student_three_two(s):
 
 
 def test_regex_multistudent():
-    students = []
-
-    for match in ddgrader.studentblock_regex.finditer(student_ex3):
-        students.append(ddgrader.Student.from_sb_match(match))
+    students = ddgrader.Student.all_from_text(student_ex3)
 
     eq_(len(students), 2)
     check_student_three_one(students[0])
@@ -131,9 +141,34 @@ def test_space_first_dd():
     eq_(len(dd.group), 3)
 
 
-@nottest
-def test_three_group():
-    path = os.path.join('files', 'dds', 'three_group.txt')
+def test_project0_1():
+    path = os.path.join('files', 'dds', 'project0_1.txt')
     dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
     assert dd is not None
-    eq_(len(dd.group), 3)
+    eq_(dd.student.cslogin, 'srio')
+    assert dd.student.ranking is None
+
+    eq_(len(dd.group), 1)
+    eq_(dd.group[0].email, 'the_rock@yahoo.com')
+    eq_(dd.group[0].ranking, 'satisfactory')
+
+
+def test_project1_0():
+    """Skip blank students"""
+    path = os.path.join('files', 'dds', 'project1_0.txt')
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    assert dd is not None
+    eq_(len(dd.group), 2)
+    assert dd.student.ranking is None
+
+
+def test_project0_2():
+    path = os.path.join('files', 'dds', 'project0_2.txt')
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    assert dd is not None
+    eq_(dd.student.cslogin, 'ckent')
+    assert dd.student.ranking is None
+
+    eq_(len(dd.group), 1)
+    eq_(dd.group[0].email, 'the_boss@utexas.edu')
+    eq_(dd.group[0].ranking, 'excellent')

@@ -1,0 +1,131 @@
+################
+YOUR INFO
+################
+Name1: Clark Kent
+EID1: ckent999
+CS login: ckent
+Email: superman@gmail.com
+Unique Number: 50001
+
+Slip days used: 0
+
+****EACH student submits a (unique) design document.****
+
+################
+YOUR PARTNER'S INFO
+################
+Name1: John Stone
+EID1: js1234
+CS login: stone
+Email: the_boss@utexas.edu
+Unique Number: 50002
+
+Slip days used: 0
+
+
+Your partner's ranking (scale below): Excellent
+
+################
+PARTNER EVALUATION SCALE
+################
+Excellent: Consistently went above and beyond - tutored others, carried
+more than his/her fair share of the load.
+
+Very Good: Consistently did what he/she was supposed to do, very well
+prepared and cooperative.
+
+Satisfactory: Usually did what he/she was supposed to do, minimally
+prepared and cooperative.
+
+Marginal: Sometimes failed to show up and/or rarely prepared.
+
+Deficient: Often failed to show up and/or rarely prepared.
+
+Unsatisfactory: Consistently failed to show up and/or unprepared.
+
+Superficial: Practically no participation.
+
+No Show: No participation at all.
+
+################
+Preliminaries
+################
+(1) If you have any preliminary comments on your submission, notes for
+  the TAs, or extra credit, please give them here.
+
+(2) Please cite any offline or online sources you consulted while
+  preparing your submission, other than the Linux documentation,
+  course text, and lecture notes.
+
+
+################
+Questions regarding Part 0
+################
+(1) How many child processes are created when doFib() begins with
+  an input of 5?  Show the return value for each child process, numbering
+  the processes beginning with 0 (the original process) and incrementing for
+  each child process.
+
+  When doFib() begins with an input of 5, 14 child processes are created.
+  Process	|	Return value
+  0			|	5
+  1			|	3
+  2			|	2
+  3			|	1
+  4			|	1
+  5			|	0
+  6			|	1
+  7			|	1
+  8			|	1
+  9			|	0
+  10		|	2
+  11		|	1
+  12		|	1
+  13		|	0
+  14		|	1
+
+(2) In part 0.3, which flavor of exec did you choose to use?  Why?
+
+  We used execv, because it only required cmd[0] and cmd, which could be easily obtained from parseline.
+
+################
+Questions regarding Part 1
+################
+(1) In the provided utility function Signal(), what does the call to
+  sigaction() do?  Why was sigaction() used instead of signal()?
+
+  	sigaction() changes the action taken by a process when it recieves a signal. 
+	sigaction() should be used instead of signal because sigaction can block more delivery of the signals 
+	while it was handling the first signal, whereas signal() might mess up if it receives continued signal calls.
+
+(2) What is the last assembly language instruction executed by the
+  signal handler function that you write?  (You may choose either signal
+  handler.)
+
+  	retq is the last assembly language instruction execeuted by sigint_handler.
+
+(3) After the instruction identified in the previous question executes, 
+  what is the next assembly language instruction executed?
+
+	mov    $0xf,%rax is the next assembly language instruction executed after retq.
+
+(4) When the signal handler finishes running, it must restore all of
+  the registers from the interrupted thread to exactly their values
+  before the signal occurred. How is this done?
+
+  	The signal handler keeps track of where the base pointer was before it began,
+	and then restores to that place.
+
+
+################
+Questions regarding Part 2
+################
+(1) In msh.c, we use three separate signal handlers to catch our signals. 
+  You can also use a single signal handler to catch all three signals.  Is
+  there a design advantage of one over the other?  Explain your answer.
+
+	sigaction() blocks signals until it has finished running the handler. If all three were being 
+	handled by the same signal handler, the handler would only block for the signal it recieved,
+	and the other signals could be recieved while it was handling the first signal, which could create
+	race conditions or errors. It might end up trying to delete a job twice.
+

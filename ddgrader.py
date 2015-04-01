@@ -22,27 +22,7 @@ rank_order = {
 'excellent': 7
 }
 
-slip_regex = re.compile(r""".*Slip[^:]*:\s*(?P<slip>\d+)\s*""", re.I)
-
-# the monster regex... in retrospect it may have been better to break this up
-#also overzealously gathers some (currently) unused information
-studentblock_regex = re.compile(
-    r"""
-    ^\s*Name\d*:\s*(?P<name>.+)\s*		#student name (what is a name, really)
-    ^\s*EID\d*:\s*(?P<eid>\w+)\s*		#eid
-    ^\s*CS\s*login\d*:\s*(?P<cslogin>\w+)\s*	#cslogin
-    ^\s*Email\d*:\s*(?P<email>.+)\n*		#email (some people put parens here... unused?)
-    ^\s*Unique[ \t]*Number\d*:\s*(?P<num>\d+)?\s*	#unique number? (may be ommitted...is this used?)
-    (^[\w\s\(\)']*(ranking|rating)['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)\s*)?	#ranking project0 form different from project1+ form
-    """, re.VERBOSE | re.MULTILINE | re.I)
-
-
-
-
-#TODO roll these into actual testcases
-#print(studentblock_regex.search(student_ex1).groups())
-#print(studentblock_regex.search(student_ex2).groups())
-#print(studentblock_regex.search(student_ex3).groups())
+slip_regex = re.compile(r""".*slip[^:]*:\s*(?P<slip>\d+)\s*""", re.I)
 
 class Singleton(type):
     _instances = {}
@@ -116,6 +96,14 @@ class DesignDocParseError(Exception):
 
 
 class Student:
+    name_regex = re.compile(r'''\s*name\d*:\s*(?P<name>.+)\s*''', re.I | re.M)
+    eid_regex = re.compile(r'''^\s*eid\d*:\s*(?P<eid>\w+)\s*''', re.I | re.M)
+    cslogin_regex = re.compile(r'''^\s*cs\s*login\d*:\s*(?P<cslogin>\w+)\s*''', re.I | re.M)
+    email_regex = re.compile(r'''^\s*email\d*:\s*(?P<email>.+)\n*''', re.I | re.M)
+    num_regex = re.compile(r'''^\s*unique[ \t]*number\d*:\s*(?P<num>\d+)?\s*''', re.I | re.M)
+    ranking_regex = re.compile(r'''^[\w\s\(\)']*(ranking|rating)['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)\s*''',
+                               re.I | re.M)
+
     def __init__(self, name, eid, cslogin, email, num, ranking=None):
         self.name = name
         self.eid = eid
@@ -131,20 +119,54 @@ class Student:
         return self.eid
 
     @staticmethod
-    def from_sb_match(match):
-        """Create a student object from a studentblock_regex match
-        TODO Add Error checking
-        """
-        name = match.group('name').lower()
-        eid = match.group('eid').lower()
-        cslogin = match.group('cslogin').lower()
-        email = match.group('email').lower()
-        num = match.group('num')
-        ranking = match.group('ranking')
-        if ranking is not None:
-            ranking = ranking.strip().lower()
+    def from_text(text, pos=0, endpos=None):
+        """Find the first student in a chunk of text"""
+
+        if endpos is None:
+            endpos = len(text)
+
+        def get_attribute(attr_name):
+            rex = getattr(Student, '%s_regex' % attr_name)
+            match = rex.search(text, pos, endpos)
+            if match and match.group(attr_name):
+                return match.group(attr_name).strip().lower()
+            else:
+                logging.debug("Student Missing Attribute %s" % attr_name)
+                return None
+
+        name = get_attribute('name')
+        eid = get_attribute('eid')
+        cslogin = get_attribute('cslogin')
+        email = get_attribute('email')
+        num = get_attribute('num')
+        ranking = get_attribute('ranking')
 
         return Student(name, eid, cslogin, email, num, ranking)
+
+
+    @staticmethod
+    def all_from_text(text):
+        """Get a list of students from a design document"""
+        students = []
+
+        def empty_student(m):
+            if m.group('name'):
+                return (':' in m.group('name'))
+            return False
+
+        # get all matches for student blocks that at least have a name
+        matches = [m for m in Student.name_regex.finditer(text) if not empty_student(m)]
+
+        for i, m in enumerate(matches):
+            endpos = matches[i + 1].start() if i < len(matches) - 1 else None
+            s = Student.from_text(text, m.start(), endpos)
+
+            if s.eid is not None:
+                students.append(s)
+            else:
+                logging.warning("Skipping student '%s' without eid " % s.name)
+
+        return students
 
     def matches(self, other):
         """Check if any of the student unique information matches another student's unique info"""
@@ -162,16 +184,17 @@ class DesignDocument:
         """Create a design document from the contents of a file given by doc_string"""
 
         student = None
-        group = []
         slip = -1
+
+        group = []
 
         #this is pretty hacky
         processed = doc_string.replace('\r\n', '\n')
         processed = processed.replace('\r', '')
         assert not '\r' in processed
 
-        for match in studentblock_regex.finditer(processed):
-            s = Student.from_sb_match(match)
+        students = Student.all_from_text(processed)
+        for s in students:
             duplicate = False
             for other_s in group:
                 if s.matches(other_s):
@@ -330,9 +353,16 @@ def create_design_docs(src):
     docs = []
     for f in sorted(os.listdir(src)):
         path = os.path.join(src, f)
-        dd = DesignDocument.from_design_doc(path, read_design_doc(path))
-        if dd is not None:
-            docs.append(dd)
+        name, ext = os.path.splitext(path)
+
+        # TODO gather associated files (jpgs, see project 1)??
+        # Either they left off the extension or it must be a txt file
+        # accidentally reading jpgs can be bad
+        if not ext or ext == '.txt':
+            dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+            if dd is not None:
+                docs.append(dd)
+
     return docs
 
 
