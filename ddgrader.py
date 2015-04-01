@@ -30,53 +30,10 @@ studentblock_regex = re.compile(
     ^CS\s*login\d*:\s*(?P<cslogin>\w+)\s*	#cslogin
     ^Email\d*:\s*(?P<email>.+)\n*		#email (some people put parens here... unused?)
     ^Unique\s*Number\d*:\s*(?P<num>\d+)?\s*	#unique number? (may be ommitted...is this used?)
-    (^[\w\s\(\)']*ranking['\(\)\w\s]*:\s*(?P<ranking>\w+\s*\w*)\s*)?	#ranking project0 form different from project1+ form
+    (^[\w\s\(\)']*ranking['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)\s*)?	#ranking project0 form different from project1+ form
     """, re.VERBOSE | re.MULTILINE | re.I)
 
-student_ex1 = """Name1: Wellow Yu
-EID1: wy51326
-CS login: pajamaa
-Email: google@google.com
-Unique Number: 5345
 
-Your partner's ranking (scale below): Satisfactory
-"""
-
-student_ex2 = """Name: Alex Knaust
-EID1:awk333
-CS login: awknaust 
-Email: zipzap@gmail.com
-Unique Number: 342134 
-Ranking (scale below): Satisfactory
-"""
-
-student_ex3 = """################
-YOUR INFO
-################
-Name1: Jeff White
-EID1: jw351323
-CS login: jwhite
-Email: jwhite@community.org
-Unique Number: 999
-
-Slip days used: 0
-
-****EACH student submits a (unique) design document.****
-
-################
-YOUR PARTNER'S INFO
-################
-Name1: Allie Brie
-EID1: ab39421
-CS login: abrieson
-Email: brunette@hair.com
-Unique Number: 17
-
-Your partner's ranking (scale below): Excellent
-
-###############
- 
-"""
 
 
 #TODO roll these into actual testcases
@@ -202,7 +159,6 @@ class DesignDocument:
         group = []
         slip = -1
 
-        print("Parsing %s" % path)
         #this is pretty hacky
         processed = doc_string.replace('\r\n', '\n')
         processed = processed.replace('\r', '')
@@ -343,7 +299,9 @@ def create_design_docs(src):
     docs = []
     for f in os.listdir(src):
         path = os.path.join(src, f)
-        with open(path, 'r') as dd_file:
+        # TODO maybe use chardet to get the encoding here instead
+        with open(path, 'r', encoding="utf-8", errors="surrogateescape") as dd_file:
+            print("Parsing %s" % path)
             dd = DesignDocument.from_design_doc(path, dd_file.read())
             if dd is not None:
                 docs.append(dd)
