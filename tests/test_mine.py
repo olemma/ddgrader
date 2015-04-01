@@ -98,10 +98,16 @@ def test_regex_multistudent():
     check_student_three_two(students[1])
 
 
-def test_design_doc_one():
+def test_design_doc_read():
     txt = None
-    path = os.path.join('files', 'macias--heriberto-late_2661601_36237426_user_design.txt')
-    with open(path, 'r', encoding="utf-8", errors="surrogateescape") as f:
-        txt = f.read()
-    ddgrader.DesignDocument.from_design_doc(path, txt)
-    assert False
+    for x in os.listdir(os.path.join('files', 'dds')):
+        path = os.path.join('files', 'dds', x)
+        assert ddgrader.read_design_doc(path) is not None
+
+
+def test_double_student_dd():
+    path = os.path.join('files', 'dds', 'double_self.txt')
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    assert dd is not None
+    eq_(len(dd.group), 1)
+    eq_(dd.group[0].cslogin, 'frobo')

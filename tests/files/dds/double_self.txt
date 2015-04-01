@@ -1,0 +1,225 @@
+                     +--------------------------+
+                     |           CS 439         |
+                     | PROJECT 2: USER PROGRAMS |
+                     |      DESIGN DOCUMENT     |
+                     +--------------------------+
+
+****EACH student submits a (unique) design document.****
+
+---- Name ----
+
+>> Fill your name, UT EID, CS login, email address, and unique number:
+
+Name: Samuel Gamgee
+EID: slord342
+CS login: frodosucks
+Email: samgee@utexas.edu
+Unique Number: 666
+
+
+Slip days used on this project: 2
+
+---- GROUP ----
+
+>> Fill the names, UT EIDs, CS logins, email addresses, and unique numbers
+>> of your group members.  Also fill in each person's ranking on the 
+>> partner evaluation scale, as determined by you.
+
+Name1: Frodo Baggins
+EID1: fr9124
+CS login: frobo
+Email: theone@middleearth.com
+Unique Number: 1
+Ranking (scale below): Excellent
+
+Name2: Samuel Gamgee
+EID2: slord342
+CS login: frodosucks
+Email: samgee@utexas.edu
+Unique Number: 666
+Ranking (scale below): — 
+
+---- PARTNER EVALUATION SCALE ----
+
+>> Excellent: Consistently went above and beyond - tutored others, carried
+>> more than his/her fair share of the load.
+
+>> Very Good: Consistently did what he/she was supposed to do, very well
+>> prepared and cooperative.
+
+>> Satisfactory: Usually did what he/she was supposed to do, minimally
+>> prepared and cooperative.
+
+>> Marginal: Sometimes failed to show up and/or rarely prepared.
+
+>> Deficient: Often failed to show up and/or rarely prepared.
+
+>> Unsatisfactory: Consistently failed to show up and/or unprepared.
+
+>> Superficial: Practically no participation.
+
+>> No Show: No participation at all.
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+N/A, except valgrind would have made fixing for multi-oom faster :'(
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+N/A
+
+			   ARGUMENT PASSING
+			   ================
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+- struct thread changes for argument passing portion:
+	- char name[THREAD_NAME_LEN]: threads name for printing
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+>> How do you avoid overflowing the stack page?
+- We implemented argument parsing by utilizing the parseline(...) function from project 0's util.h. This got us a properly ordered argv[] array that we pushed onto the stack while not mangling uniformity. Avoided overflowing stack page by defining a reasonable MAXARG length that cuts off data before overflow.
+
+---- RATIONALE ----
+
+>> A3: Why does Pintos implement strtok_r() but not strtok()?
+- strtok() uses global data, so using it is unsafe in the kernel and other threaded programs.
+
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least two advantages of the Unix approach.
+- Simplifies handling data for the kernel. Allows a straightforward check for a MAXARG len and setting up stack accordingly.
+Processing the executable and argument names in userland from the shell just makes more sense. It's the user environment interfacing with the shell, and should be handled inside userland until a context switch is necessary to actually interface with the OS.
+
+
+			     SYSTEM CALLS
+			     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+- struct thread changes:
+	- char name[THREAD_NAME_LEN]: threads name for printing
+	- struct file *binary: executable file for thread, if any
+	- struct list children: list of threads this current thread has spawned; used in waiting.
+	- struct thread *parent: current thread's parent
+	- struct child_exit_status *exit: thread's exit status write target
+- struct fd: our file descriptor. has list_elem, a pointer to our file, our number, and the tid_t of our owner.
+- static struct semaphore fd_num_sema: static struct used to modify our file descriptors list
+- static int fd_num_counter: static count for unique fd nums
+- static struct semaphore fs_sema: sema used to ensure only one thread is modifying the filesys at a time.
+- static struct list *_file descriptors: list for maintaining allocated fd's
+- enum load_status_t: set and used to determine the case when a process fails to load.
+- struct child_exit_statis: structure encoding an exit status for a child process
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+- File descriptors are matched with a file when syscall open is called. File descriptors are unique among the entire OS, as only one thread/process can own each one at a time. The file pointer in a descriptor, however, need not be unique among other descriptors.
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+- We created a wrapper around each of the lib calls provided and ensured to surround that functionality with synchronization methods. Prior to that though, we ensure the data is valid by utilizing our VALIDATE_ARG(x) macro.
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+- Least number is 1, greatest number is largely infinite; calling until the new page succeeds in allocating a page big enough. The numbers are the same for a copy that only needs 2 bytes of data, since the call gets a whole page regardless and will just suffer from internal fragmentation. Could do a control flow where the pagedir_get_page() call is forced to wait on the pagedir_create() call for the new area.
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+- We grab the child_exit_status for the process corresponding to the passed child_tid argument. If the child_exit_status we get is NULL, it means we can't find them and it's an invalid call to wait and we return -1. Next we down the child_exit_status exit_sema followed by downing the "sema," which will block us until the process we want has finished executing. We grab the exit_status from the child_exit_status struct and clean up our memory (which handles the case of waiting on something already waited on), and returning the status.
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+- At the top of our syscall.c file we defined a macro, "VALIDATE_ARG(x)", to use that quickly and cleanly validates any and all of the vital arguments we passed to it. What VALIDATE_ARG(x) does, is it esures the x value isn't null, that it is a valid user v. address, and that it is mapped. If any of these checks fail, the thread does an immediate thread_exit(-1). It's useful since we can do a one-liner only in the places where an argument needs to be validated for memory access.
+
+We clean up the temporarily allocated resources the same way as any other thread: in thread_exit(...). This poses no other issue for us, as we don't allocate anything specific in our syscall_handler before validation that would have been leaked.
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+- Inside of our child_exit_status, we have an indicator of load_status, that starts as UNSET and is marked as SUCCESS or FAILURE after load(...) is called. In execute, this value is read in the parent and handled accordingly. To ensure we wait on this value, we also wait on sema_down'ing our child_exit_status's sema that is up'd once the load status has been set.
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+- To prevent race conditions and ensure proper synchronization between processes and wait, we tie a semaphore to the exit_status and can only access the exit_status once the semaphore as been up'd which happens after the status is set. Resources are freed by in process_exit, checking the child_exit_status structure for the threads and respectively either NULL's out the data, or checks for NULL'd data and clears it accordingly. As such removing edge cases that the free'ing of child_exit_status's has been generalized.
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+- We felt it was the quickest and easiest method. Using a handle around what was given in the kernel provided a clean(er) solution.
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+- Advantages: Neatly handles file management via simple list traversal and following embedded file pointer.
+Disadvantages: Each fd needs it's own page allocated taking space, space trade-off.
+
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+- We never changed tid_t/pid_t.
+
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future semesters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the semester.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+- Nope.
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+- Yes, The syscalls for wait and exec specifically.
+
+>> Is there some particular fact or hint we should give students in
+>> future semesters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+- Reid and I were misled by our TA for the stack check. He had us modify the way we handled white space handling in the command line parsing. This "fix" later became the source of a bug when we were using syscall's with the modified version. Reverting that change made by the TA's decision fixed the issue. Reid and I are moderately salty about that fact ... :( :|
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future semesters or the remaining projects?
+- N/A
+
+>> Any other comments?
+- N/A

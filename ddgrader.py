@@ -1,10 +1,13 @@
 #!/usr/bin/python3
+import argparse
 
 import re, os, sys, shutil, pickle
 import subprocess
 import configparser
 import zipfile
 import csv
+
+import logging
 
 CONFIG_NAME = 'ddgrader.cfg'
 
@@ -143,6 +146,9 @@ class Student:
 
         return Student(name, eid, cslogin, email, num, ranking)
 
+    def matches(self, other):
+        """Check if any of the student unique information matches another student's unique info"""
+        return self.eid == other.eid or self.cslogin == other.cslogin or self.num == other.num
 
 class DesignDocument:
     def __init__(self, path, student, group, slip):
@@ -166,7 +172,14 @@ class DesignDocument:
 
         for match in studentblock_regex.finditer(processed):
             s = Student.from_sb_match(match)
-            group.append(s)
+            duplicate = False
+            for other_s in group:
+                if s.matches(other_s):
+                    duplicate = True
+                    break
+
+            if not duplicate:
+                group.append(s)
 
         slip_match = slip_regex.search(processed)
 
@@ -179,19 +192,21 @@ class DesignDocument:
 
         #check group size
         if len(group) == 0:
-            print("'%s': No students/bad design document" % path)
+            logging.error("'%s': No students/bad design document" % path)
         elif len(group) < 2:
-            print("'%s': Singleton group" % path)
+            logging.warning("'%s': Singleton group" % path)
             return DesignDocument(os.path.abspath(path), group[0], [], slip)
         elif len(group) >= 2:
             #check rankings
             for s in group[1:]:
                 if not s.hasRanking():
-                    print("Partner missing ranking")
+                    logging.warning("Partner missing ranking")
                 elif s.ranking not in rank_order:
-                    print("Bad Ranking '%s'" % s.ranking)
+                    logging.warning("Bad Ranking '%s'" % s.ranking)
+
+                # TODO move to a report generator
                 elif rank_order[s.ranking] <= rank_order[Configger().report_thresh()]:
-                    print("REPORT: %s Ranked %s as %s" % (group[0].eid, s.eid, s.ranking))
+                    logging.error("REPORT: %s Ranked %s as %s" % (group[0].eid, s.eid, s.ranking))
 
             return DesignDocument(os.path.abspath(path), group[0], group[1:], slip)
 
@@ -295,16 +310,26 @@ def load_dds():
         return pickle.load(f)
 
 
-def create_design_docs(src):
-    docs = []
-    for f in os.listdir(src):
-        path = os.path.join(src, f)
-        # TODO maybe use chardet to get the encoding here instead
+def read_design_doc(path):
+    """Read a design doc file into a string, wrapper to handle encoding problems"""
+    # TODO maybe use chardet to get the encoding here instead
+    try:
         with open(path, 'r', encoding="utf-8", errors="surrogateescape") as dd_file:
-            print("Parsing %s" % path)
-            dd = DesignDocument.from_design_doc(path, dd_file.read())
-            if dd is not None:
-                docs.append(dd)
+            logging.debug("Reading Design Doc %s..." % path)
+            return dd_file.read()
+
+    except Exception as e:
+        logging.error(e)
+        logging.error("cannot read path '%s'" % path)
+
+def create_design_docs(src):
+    """Create a list of design docs from all files in a directory"""
+    docs = []
+    for f in sorted(os.listdir(src)):
+        path = os.path.join(src, f)
+        dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+        if dd is not None:
+            docs.append(dd)
     return docs
 
 
@@ -597,21 +622,29 @@ class HelpCommand(Command):
 # entry point
 if __name__ == '__main__':
     cmds = [MineCommand(), SetupCommand(), GradeCommand(), CollectCommand()]
+
     hlp = HelpCommand(cmds)
     cmds.append(hlp)
 
-    if len(sys.argv) < 2:
-        print("Missing command")
-        exit(1)
-    else:
-        match = False
-        attempt = sys.argv[1]
-        for cmd in cmds:
-            if attempt == cmd.cmd:
-                cmd.do_cmd(sys.argv[1:])
-                match = True
-                break
+    root_parser = argparse.ArgumentParser()
+    # TODO this should be done with subparsers instead
+    root_parser.add_argument('command', help="command to execute", choices=[c.cmd for c in cmds])
+    root_parser.add_argument('-l', '--logfile', help="Path of file to log to, default to stdout")
+    root_parser.add_argument('-L', '--loglevel', help="Logging level", default='warning',
+                             choices=['info', 'warning', 'error', 'critical', 'debug'])
+    root_parser.add_argument('args', nargs=argparse.REMAINDER)
+    parsed = root_parser.parse_args()
 
-    if not match:
-        print("Command not found")
-        exit(1)
+    # setup logging
+    numeric_level = getattr(logging, parsed.loglevel.upper(), None)
+    if parsed.logfile is not None:
+        logging.basicConfig(level=numeric_level)
+    else:
+        logging.basicConfig(level=numeric_level, filename=parsed.logfile)
+
+    for c in cmds:
+        if c.cmd == parsed.command:
+            c.do_cmd([parsed.command, ] + parsed.args)
+
+    logging.shutdown()
+
