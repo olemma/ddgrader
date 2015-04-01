@@ -28,12 +28,12 @@ slip_regex = re.compile(r""".*Slip[^:]*:\s*(?P<slip>\d+)\s*""", re.I)
 #also overzealously gathers some (currently) unused information
 studentblock_regex = re.compile(
     r"""
-    ^Name\d*:\s*(?P<name>.+)\s*		#student name (what is a name, really)
-    ^EID\d*:\s*(?P<eid>\w+)\s*		#eid
-    ^CS\s*login\d*:\s*(?P<cslogin>\w+)\s*	#cslogin
-    ^Email\d*:\s*(?P<email>.+)\n*		#email (some people put parens here... unused?)
-    ^Unique\s*Number\d*:\s*(?P<num>\d+)?\s*	#unique number? (may be ommitted...is this used?)
-    (^[\w\s\(\)']*ranking['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)\s*)?	#ranking project0 form different from project1+ form
+    ^\s*Name\d*:\s*(?P<name>.+)\s*		#student name (what is a name, really)
+    ^\s*EID\d*:\s*(?P<eid>\w+)\s*		#eid
+    ^\s*CS\s*login\d*:\s*(?P<cslogin>\w+)\s*	#cslogin
+    ^\s*Email\d*:\s*(?P<email>.+)\n*		#email (some people put parens here... unused?)
+    ^\s*Unique[ \t]*Number\d*:\s*(?P<num>\d+)?\s*	#unique number? (may be ommitted...is this used?)
+    (^[\w\s\(\)']*(ranking|rating)['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)\s*)?	#ranking project0 form different from project1+ form
     """, re.VERBOSE | re.MULTILINE | re.I)
 
 
@@ -148,7 +148,7 @@ class Student:
 
     def matches(self, other):
         """Check if any of the student unique information matches another student's unique info"""
-        return self.eid == other.eid or self.cslogin == other.cslogin or self.num == other.num
+        return self.eid == other.eid or self.cslogin == other.cslogin
 
 class DesignDocument:
     def __init__(self, path, student, group, slip):
@@ -176,6 +176,7 @@ class DesignDocument:
             for other_s in group:
                 if s.matches(other_s):
                     duplicate = True
+                    logging.debug("Duplicate student found in group")
                     break
 
             if not duplicate:
@@ -188,25 +189,27 @@ class DesignDocument:
             slip = int(slip_match.group('slip'))
         else:
             slip = 0
-            print("Couldn't find slip days")
+            logging.warning("'%s': Couldn't find slip days" % path)
 
         #check group size
         if len(group) == 0:
-            logging.error("'%s': No students/bad design document" % path)
+            # document must be fixed and rerun
+            logging.critical("'%s': No students/bad design document" % path)
+
         elif len(group) < 2:
-            logging.warning("'%s': Singleton group" % path)
+            # this usually indicates an error in parsing
+            logging.error("'%s': Singleton group" % path)
             return DesignDocument(os.path.abspath(path), group[0], [], slip)
+
         elif len(group) >= 2:
             #check rankings
             for s in group[1:]:
-                if not s.hasRanking():
-                    logging.warning("Partner missing ranking")
-                elif s.ranking not in rank_order:
-                    logging.warning("Bad Ranking '%s'" % s.ranking)
+                if not s.hasRanking() or s.ranking not in rank_order:
+                    logging.warning("'%s': Bad/Missing Ranking (eid:%s, ranking:'%s')" % (path, s.eid, s.ranking))
 
                 # TODO move to a report generator
                 elif rank_order[s.ranking] <= rank_order[Configger().report_thresh()]:
-                    logging.error("REPORT: %s Ranked %s as %s" % (group[0].eid, s.eid, s.ranking))
+                    logging.error("%s Ranked %s as %s" % (group[0].eid, s.eid, s.ranking))
 
             return DesignDocument(os.path.abspath(path), group[0], group[1:], slip)
 

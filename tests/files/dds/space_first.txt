@@ -1,0 +1,234 @@
+                     +--------------------------+
+                     |           CS 439         |
+                     | PROJECT 2: USER PROGRAMS |
+                     |      DESIGN DOCUMENT     |
+                     +--------------------------+
+
+****EACH student submits a (unique) design document.****
+
+---- Name ----
+
+>> Fill your name, UT EID, CS login, email address, and unique number:
+
+Name: Sister John
+EID: sj342
+CS login: sjohn
+Email: sjohn@utexas.edu
+Unique Number: 51800
+
+
+Slip days used on this project:
+2
+---- GROUP ----
+  Name1: Train We
+  EID1: twe99
+  CS login: train
+  Email: train@utexas.edu
+  Unique Number: 51001
+  Ranking (scale below): Excellent
+
+  Name2: Dr. Gregor Nihovich
+  EID2: gvn11
+  CS login: gvnvich
+  Email: gif@utexas.edu
+  Unique Number: 50002
+  Ranking (scale below): Very Good
+ 
+  Name3: Lawm David
+  EID3: rust
+  CS login: law19
+  Email: nytimes@utexas.edu
+  Unique Number: 50003
+  Ranking (scale below): Very Good
+
+
+
+
+---- PARTNER EVALUATION SCALE ----
+
+>> Excellent: Consistently went above and beyond - tutored others, carried
+>> more than his/her fair share of the load.
+
+>> Very Good: Consistently did what he/she was supposed to do, very well
+>> prepared and cooperative.
+
+>> Satisfactory: Usually did what he/she was supposed to do, minimally
+>> prepared and cooperative.
+
+>> Marginal: Sometimes failed to show up and/or rarely prepared.
+
+>> Deficient: Often failed to show up and/or rarely prepared.
+
+>> Unsatisfactory: Consistently failed to show up and/or unprepared.
+
+>> Superficial: Practically no participation.
+
+>> No Show: No participation at all.
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			   ARGUMENT PASSING
+			   ================
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+struct thread *cur = thread_current ();
+struct thread *parent = cur->parent; //sets a thread pointed to parent so it will know if child loaded executable safely
+struct thread *current = thread_current (); // calls the current thread so it is saved for later
+struct thread *child = NULL; //sets the child to null in wait
+struct list_elem *e; //list of elems when exiting
+char *argv[argc]; //file name tokenized here
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+>> How do you avoid overflowing the stack page?
+
+We use strtok_r to pass the file name, and use myEsp and the length of the tokenized string to keep track of the boundaries. We fill argv while the tokenized string is not full, and write it using myEsp.
+
+---- RATIONALE ----
+
+>> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+strtok() is not reentrant, and Pintos uses that to ensure multiple threads are not calling tokenize simultaneously,
+and thus strtok() is prone to race conditions. Whereas strtok_r() is safe in a multi-threaded enviorment because of its third argument.
+
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least two advantages of the Unix approach.
+
+The shell can filter commands before they are sent to the kernel, so any hazardous commands can be avoided before they reach the kernel.
+
+When the shell does the seperating, we can save memory because if the arguments and executable name are different, we can store only the arguments, so the kernel does less work.
+
+			     SYSTEM CALLS
+			     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+//4 booleans to check for errors
+static bool validate_fd (int fd, const struct thread *t);
+static bool is_valid_ptr (const void *ptr);
+static void check_all_args (int num_args, const int *esp, bool check_string);
+static bool validate_buffer (char *our_buffer, unsigned size);
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+
+Each process has its own copy of a list of the open files, using the max number of open files provided to us. We iterate through the array of files in order to find the first one
+which is not set to null, so that we can set the newly open file to that index.
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+
+We check all the arguments and pointers after recieving user data, after all of the data is validated, we process it in the kernel. For writing, we create a buffer and validate it, afterwards, we use putbuf to write the data out.
+
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+
+We use 2 page checks for both these scenarios. 1 Page check may be possible if a way of finding where on a page you have free space, so that we would not have to check the beginning and end of each page as we do in our current 
+implementation. You could also write without checking, and wait for an error, using this method you would need 0 checks but may be prone to error.
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+
+The wait syscall calls process_wait in process.c, and gets the list of elements and the list of current children. If a child is found, it blocks the parent until the child terminates with the status. 
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+
+
+To manage this, we have a handful of methods that are used to check pointers to make sure they are valid so we will not have bad pointer values. Rather than taking the bad pointer, than fixing the issues it caused, we just avoid taking in the bad pointer entirely. For example we have a boolean method in syscall.c called validate_buffer, it checks it then resets it and returns true or false depending on the result of the check.
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+
+We have a boolean called exec_success that tells us what happened, along with TID_ERROR
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+
+We get the entire list of children and iterate through them to make sure they are all completed. If a child is found, a sempahore is given to the child until the exit status can be recieved from the child, then the sempahore is returned and the status is returned, so that we know the child has exited, and why it has exited. This covers all cases.
+
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+
+We wanted to keep it simple and efficent, so using this method with PHYS_base and install_page(), it goes quickly and makes sure not to go over the boundaries.
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+
+Since we used a cap for our number of files, our number of open files is limited, or we have empty space when not all of the empty spots are used. We could use dynamic allocation which would take less space and not have a limit, but would take more time to run. But since we did use a capped array, we can iterate through the files rather quickly.
+
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+
+We did not change it.
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future semesters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the semester.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future semesters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future semesters or the remaining projects?
+
+>> Any other comments?

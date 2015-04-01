@@ -49,6 +49,17 @@ Your partner's ranking (scale below): Excellent
 """
 
 
+def student_matches():
+    s1 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 7)
+    s2 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 3)
+    s3 = ddgrader.Student('jemma', 'jt7', 'jteller', 'jteller@gmail.com', 9)
+    assert s1.matches(s2)
+    assert s2.matches(s1)
+    assert s1.matches(s1)
+    assert not s3.matches(s1)
+    assert not s1.matches(s3)
+
+
 def test_student_one():
     s = ddgrader.Student.from_sb_match(ddgrader.studentblock_regex.search(student_ex1))
     eq_(s.name, 'wellow yu')
@@ -111,3 +122,18 @@ def test_double_student_dd():
     assert dd is not None
     eq_(len(dd.group), 1)
     eq_(dd.group[0].cslogin, 'frobo')
+
+
+def test_space_first_dd():
+    path = os.path.join('files', 'dds', 'space_first.txt')
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    assert dd is not None
+    eq_(len(dd.group), 3)
+
+
+@nottest
+def test_three_group():
+    path = os.path.join('files', 'dds', 'three_group.txt')
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    assert dd is not None
+    eq_(len(dd.group), 3)
