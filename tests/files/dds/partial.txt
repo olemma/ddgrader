@@ -1,0 +1,40 @@
+                     +--------------------------+
+                     |           CS 439         |
+                     | PROJECT 2: USER PROGRAMS |
+                     |      DESIGN DOCUMENT     |
+                     +--------------------------+
+
+****EACH student submits a (unique) design document.****
+
+---- Name ----
+
+>> Fill your name, UT EID, CS login, email address, and unique number:
+
+
+Name1: Frodo Baggins
+EID1: fr9124
+CS login: frobo
+Email: theone@middleearth.com
+Unique Number: 1
+Ranking (scale below): Excellent
+
+
+Slip days used on this project: 2
+
+---- GROUP ----
+
+>> Fill the names, UT EIDs, CS logins, email addresses, and unique numbers
+>> of your group members.  Also fill in each person's ranking on the
+>> partner evaluation scale, as determined by you.
+
+
+Name2: Samuel Gamgee
+EID2:
+CS login:
+Email:
+Unique Number:
+Ranking (scale below):
+
+---- PARTNER EVALUATION SCALE ----
+
+>> Excellent: Consistently went above and beyond - tutored others, carried

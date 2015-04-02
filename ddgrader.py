@@ -101,7 +101,9 @@ class Student:
     num_regex = re.compile(r'''unique[ \t]*number\d*[ \t]*:[ \t]*(?P<num>\d+)''', re.I)
     ranking_regex = re.compile(r'''^[\w\s\(\)']*(ranking|rating)['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)''',
                                re.I | re.M)
-    attr_list = ['name', 'eid', 'cslogin', 'email', 'num', 'ranking']
+
+    # important non-ranking attrs
+    attr_list = ['name', 'eid', 'cslogin', 'email', 'num']
 
     def __init__(self, name, eid, cslogin, email, num, ranking=None):
         self.name = name
@@ -168,8 +170,9 @@ class Student:
 
             if s is not None:
                 students.append(s)
-            elif s is not None:
+            elif s is not None and s.eid is None:
                 logging.warning("'%s': Student '%s' without eid" % (path, s.name))
+                students.append(s)
             elif s is None:
                 logging.info("Skipping empty student")
 
@@ -180,7 +183,7 @@ class Student:
 
     def matches(self, other):
         """Check if any of the student unique information matches another student's unique info"""
-        return self.eid == other.eid or self.cslogin == other.cslogin
+        return self.eid == other.eid or self.cslogin == other.cslogin or self.email == other.email
 
     def _common_attrs(self, other):
         """Return a list of attributes these two students have in common, other than ranking"""
@@ -200,14 +203,15 @@ class Student:
         update the remaining ones for us
         """
         cattrs = self._common_attrs(other)
-        if 'name' in cattrs or 'eid' in cattrs:
+        if cattrs:
             for attr_name in Student.attr_list:
                 attr = getattr(self, attr_name)
                 o_attr = getattr(other, attr_name)
+
                 if attr is None and o_attr is not None:
                     setattr(self, attr_name, o_attr)
-                if attr is not None and o_attr is not None:
-                    logging.warning("Partial match, but different info This:\n%s\nOther:\n%s" % (str(self), str(other)))
+                if attr is not None and o_attr is not None and attr != o_attr:
+                    logging.debug("Partial match, but different info \nThis:\n%s\nOther:\n%s" % (str(self), str(other)))
 
 
     def __str__(self):
@@ -216,12 +220,15 @@ class Student:
     def __eq__(self, other):
         if not isinstance(other, Student):
             return NotImplemented
-        return vars(self) == vars(other)
+        for a_name in Student.attr_list:
+            if getattr(self, a_name) != getattr(other, a_name):
+                return False
+        return True
 
     def __ne__(self, other):
         if not isinstance(other, Student):
             return NotImplemented
-        return vars(self) != vars(other)
+        return not self == other
 
 
 class DesignDocument:
@@ -246,7 +253,7 @@ class DesignDocument:
         if slip_match and slip_match.group('slip'):
             return int(slip_match.group('slip')), True
         else:
-            logging.warning("'%s': Couldn't find slip days" % path)
+            logging.info("'%s': Couldn't find slip days, defaulting to 0" % path)
             return 0, False
 
 
@@ -265,9 +272,9 @@ class DesignDocument:
         for s in students:
             duplicate = False
             for other_s in group:
-                if s.matches(other_s):
+                if s.is_valid() and s.matches(other_s):
                     duplicate = True
-                    logging.debug("Duplicate student found in group")
+                    logging.info("'%s': Duplicate student found in group" % path)
                     break
 
             if not duplicate:
@@ -382,6 +389,7 @@ def store_dds(design_docs):
     """Pickle the design_docs list"""
     with open(Configger().dds_pickle_name(), 'wb') as f:
         pickle.dump(design_docs, f)
+        f.flush()
 
 
 class MissingDDSException(Exception):
@@ -404,13 +412,13 @@ def cross_reference(docs):
     for i, doc in enumerate(docs):
         for odoc in docs[i + 1:]:
             for s in odoc.group:
-                doc.student.update_other(s)
                 s.update_other(doc.student)
             if doc.student.matches(odoc.student):
                 logging.error("Double design document detected '%s' and '%s'" % (doc.path, odoc.path))
 
 
 def clean_empty_students(docs):
+    """Remove invalid students from all groups in a list of docs"""
     for d in docs:
         ng = []
         for s in d.group:
@@ -435,10 +443,14 @@ def read_design_doc(path):
         logging.error(e)
         logging.error("cannot read path '%s'" % path)
 
-def create_design_docs(src):
+
+def create_design_docs(src, subset=None):
     """Create a list of design docs from all files in a directory"""
     docs = []
-    for f in sorted(os.listdir(src)):
+    if subset is None:
+        subset = sorted(os.listdir(src))
+
+    for f in subset:
         path = os.path.join(src, f)
         name, ext = os.path.splitext(path)
 
@@ -451,6 +463,7 @@ def create_design_docs(src):
                 docs.append(dd)
 
     cross_reference(docs)
+    clean_empty_students(docs)
     return docs
 
 

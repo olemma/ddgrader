@@ -228,3 +228,42 @@ def test_slip_days():
     eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string2), (0, False))
     eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string3), (3, True))
 
+
+def test_cross_reference():
+    path = os.path.join('files', 'dds', 'double_self.txt')
+    dd1 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+
+    path2 = os.path.join('files', 'dds', 'partial.txt')
+    dd2 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path2))
+
+    dds = [dd1, dd2]
+    ddgrader.cross_reference(dds)
+    eq_(dd2.group[0].eid, dd1.student.eid)
+    eq_(len(dd2.group), 1)
+    eq_(len(dd1.group), 1)
+
+
+def test_cross_reference_again():
+    path = os.path.join('files', 'dds', 'cref1.txt')
+    dd1 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+
+    path2 = os.path.join('files', 'dds', 'cref2.txt')
+    dd2 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path2))
+
+    dds = [dd1, dd2]
+    ddgrader.cross_reference(dds)
+
+    eq_(len(dd2.group), 3)
+    eq_(dd2.group[0].eid, dd1.student.eid)
+
+
+def test_clean_empty_students():
+    path = os.path.join('files', 'dds', 'project1_0.txt')
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    assert dd is not None
+    eq_(len(dd.group), 3)
+    ddgrader.clean_empty_students([dd, ])
+    eq_(len(dd.group), 2)
+
+    for s in dd.group:
+        assert s.name != 'none'
