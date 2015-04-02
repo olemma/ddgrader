@@ -56,8 +56,57 @@ Unique Number:
 Ranking (scale below):
 """
 
+slip_string1 = """
+Slip days used:0
+****EACH student submits a (unique) design document.****
+"""
 
-def student_matches():
+slip_string2 = """
+Slip days used:
+"""
+
+slip_string3 = """
+Slip days used:  3
+"""
+
+
+def test_student_eq():
+    s1 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
+    s2 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 2)
+    s3 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
+    s4 = ddgrader.Student('alex', 'awk8', 'awknaust', 'awknaust@gmail.com', 5)
+
+    assert s1 == s1
+    assert s1 == s3
+    assert s2 != s3
+    assert s2 != s4
+    assert s3 != s4
+
+
+def test_student_update_other():
+    s1 = ddgrader.Student('alex', None, 'awknaust', None, 5)
+    s2 = ddgrader.Student('alex', 'awk5', None, 'awknaust@gmail.com', 5)
+    s3 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
+
+    s4 = ddgrader.Student('None', None, None, None, None)
+    s5 = ddgrader.Student('None', None, None, None, None)
+
+    # test if overwrites info if they are notnone and different
+    s6 = ddgrader.Student('alex', 'eid19', None, None, None)
+    s7 = ddgrader.Student('alex', 'eid19', None, None, None)
+    s8 = ddgrader.Student('alex', 'hello', None, None, None)
+
+    s7.update_other(s8)
+    eq_(s7, s6)
+
+    s4.update_other(s5)
+    eq_(s4.eid, None)
+
+    s1.update_other(s2)
+    eq_(s1, s3)
+
+
+def test_student_matches():
     s1 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 7)
     s2 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 3)
     s3 = ddgrader.Student('jemma', 'jt7', 'jteller', 'jteller@gmail.com', 9)
@@ -112,7 +161,7 @@ def check_student_three_two(s):
 
 
 def test_regex_multistudent():
-    students = ddgrader.Student.all_from_text(student_ex3)
+    students = ddgrader.Student.all_from_text(student_ex3, 'test')
 
     eq_(len(students), 2)
     check_student_three_one(students[0])
@@ -158,7 +207,7 @@ def test_project1_0():
     path = os.path.join('files', 'dds', 'project1_0.txt')
     dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
     assert dd is not None
-    eq_(len(dd.group), 2)
+    eq_(len(dd.group), 3)
     assert dd.student.ranking is None
 
 
@@ -172,3 +221,10 @@ def test_project0_2():
     eq_(len(dd.group), 1)
     eq_(dd.group[0].email, 'the_boss@utexas.edu')
     eq_(dd.group[0].ranking, 'excellent')
+
+
+def test_slip_days():
+    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string1), (0, True))
+    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string2), (0, False))
+    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string3), (3, True))
+

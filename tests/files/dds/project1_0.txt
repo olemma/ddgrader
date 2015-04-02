@@ -54,6 +54,13 @@ Email:
 Unique Number:
 Ranking (scale below):
 
+Name3: None
+EID2:
+CS login:
+Email:
+Unique Number:
+Ranking (scale below):
+
 ---- PARTNER EVALUATION SCALE ----
 
 >> Excellent: Consistently went above and beyond - tutored others, carried

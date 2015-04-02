@@ -22,8 +22,6 @@ rank_order = {
 'excellent': 7
 }
 
-slip_regex = re.compile(r""".*slip[^:]*:\s*(?P<slip>\d+)\s*""", re.I)
-
 class Singleton(type):
     _instances = {}
 
@@ -96,13 +94,14 @@ class DesignDocParseError(Exception):
 
 
 class Student:
-    name_regex = re.compile(r'''\s*name\d*:\s*(?P<name>.+)\s*''', re.I | re.M)
-    eid_regex = re.compile(r'''^\s*eid\d*:\s*(?P<eid>\w+)\s*''', re.I | re.M)
-    cslogin_regex = re.compile(r'''^\s*cs\s*login\d*:\s*(?P<cslogin>\w+)\s*''', re.I | re.M)
-    email_regex = re.compile(r'''^\s*email\d*:\s*(?P<email>.+)\n*''', re.I | re.M)
-    num_regex = re.compile(r'''^\s*unique[ \t]*number\d*:\s*(?P<num>\d+)?\s*''', re.I | re.M)
-    ranking_regex = re.compile(r'''^[\w\s\(\)']*(ranking|rating)['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)\s*''',
+    name_regex = re.compile(r'''name\d*[\t ]*:\s*(?P<name>.+)''', re.I)
+    eid_regex = re.compile(r'''eid\d*[\t ]*:[\t ]*(?P<eid>\w+)''', re.I)
+    cslogin_regex = re.compile(r'''cs[ \t]*login\d*[ \t]*:[ \t]*(?P<cslogin>\w+)''', re.I)
+    email_regex = re.compile(r'''email\d*[ \t]*:[ \t]*(?P<email>.+)''', re.I | re.M)
+    num_regex = re.compile(r'''unique[ \t]*number\d*[ \t]*:[ \t]*(?P<num>\d+)''', re.I)
+    ranking_regex = re.compile(r'''^[\w\s\(\)']*(ranking|rating)['\(\)\w\s]*:\s*(?P<ranking>\w+[ \t]*\w+)''',
                                re.I | re.M)
+    attr_list = ['name', 'eid', 'cslogin', 'email', 'num', 'ranking']
 
     def __init__(self, name, eid, cslogin, email, num, ranking=None):
         self.name = name
@@ -125,6 +124,11 @@ class Student:
         if endpos is None:
             endpos = len(text)
 
+        def empty_student(m):
+            if m and m.group('name'):
+                return (':' in m.group('name'))
+            return False
+
         def get_attribute(attr_name):
             rex = getattr(Student, '%s_regex' % attr_name)
             match = rex.search(text, pos, endpos)
@@ -133,6 +137,9 @@ class Student:
             else:
                 logging.debug("Student Missing Attribute %s" % attr_name)
                 return None
+
+        if empty_student(Student.name_regex.search(text, pos, endpos)):
+            return None
 
         name = get_attribute('name')
         eid = get_attribute('eid')
@@ -145,46 +152,107 @@ class Student:
 
 
     @staticmethod
-    def all_from_text(text):
-        """Get a list of students from a design document"""
+    def all_from_text(text, path):
+        """Get a list of students from a design document
+        :param path:
+        """
         students = []
 
-        def empty_student(m):
-            if m.group('name'):
-                return (':' in m.group('name'))
-            return False
 
         # get all matches for student blocks that at least have a name
-        matches = [m for m in Student.name_regex.finditer(text) if not empty_student(m)]
+        matches = [m for m in Student.name_regex.finditer(text)]
 
         for i, m in enumerate(matches):
             endpos = matches[i + 1].start() if i < len(matches) - 1 else None
             s = Student.from_text(text, m.start(), endpos)
 
-            if s.eid is not None:
+            if s is not None:
                 students.append(s)
-            else:
-                logging.warning("Skipping student '%s' without eid " % s.name)
+            elif s is not None:
+                logging.warning("'%s': Student '%s' without eid" % (path, s.name))
+            elif s is None:
+                logging.info("Skipping empty student")
 
         return students
+
+    def is_valid(self):
+        return self.eid is not None
 
     def matches(self, other):
         """Check if any of the student unique information matches another student's unique info"""
         return self.eid == other.eid or self.cslogin == other.cslogin
 
+    def _common_attrs(self, other):
+        """Return a list of attributes these two students have in common, other than ranking"""
+
+        cattrs = []
+
+        for attr_name in Student.attr_list:
+            attr = getattr(self, attr_name)
+            o_attr = getattr(other, attr_name)
+            if attr is not None and attr == o_attr:
+                cattrs.append(attr_name)
+
+        return cattrs
+
+    def update_other(self, other):
+        """If we have any common attributes with another student,
+        update the remaining ones for us
+        """
+        cattrs = self._common_attrs(other)
+        if 'name' in cattrs or 'eid' in cattrs:
+            for attr_name in Student.attr_list:
+                attr = getattr(self, attr_name)
+                o_attr = getattr(other, attr_name)
+                if attr is None and o_attr is not None:
+                    setattr(self, attr_name, o_attr)
+                if attr is not None and o_attr is not None:
+                    logging.warning("Partial match, but different info This:\n%s\nOther:\n%s" % (str(self), str(other)))
+
+
+    def __str__(self):
+        return '(' + ', '.join(['%s:%s' % (a, getattr(self, a)) for a in Student.attr_list]) + ')'
+
+    def __eq__(self, other):
+        if not isinstance(other, Student):
+            return NotImplemented
+        return vars(self) == vars(other)
+
+    def __ne__(self, other):
+        if not isinstance(other, Student):
+            return NotImplemented
+        return vars(self) != vars(other)
+
+
 class DesignDocument:
+    slip_regex = re.compile(r"""slip[^:]*:\s*(?P<slip>\d+)\s*""", re.I)
+
     def __init__(self, path, student, group, slip):
         self.path = path
         self.slip = slip
         self.student = student
         self.group = group
 
+    def all_students(self):
+        return [self.student, ] + self.group
+
+    @staticmethod
+    def find_slip_days(path, doc_string):
+        """Find the reported number of slip days used, as well as whether it was really found
+        """
+        slip_match = DesignDocument.slip_regex.search(doc_string)
+
+        # check slip validity
+        if slip_match and slip_match.group('slip'):
+            return int(slip_match.group('slip')), True
+        else:
+            logging.warning("'%s': Couldn't find slip days" % path)
+            return 0, False
+
+
     @staticmethod
     def from_design_doc(path, doc_string):
         """Create a design document from the contents of a file given by doc_string"""
-
-        student = None
-        slip = -1
 
         group = []
 
@@ -193,7 +261,7 @@ class DesignDocument:
         processed = processed.replace('\r', '')
         assert not '\r' in processed
 
-        students = Student.all_from_text(processed)
+        students = Student.all_from_text(processed, path)
         for s in students:
             duplicate = False
             for other_s in group:
@@ -205,14 +273,7 @@ class DesignDocument:
             if not duplicate:
                 group.append(s)
 
-        slip_match = slip_regex.search(processed)
-
-        #check slip validity
-        if (slip_match):
-            slip = int(slip_match.group('slip'))
-        else:
-            slip = 0
-            logging.warning("'%s': Couldn't find slip days" % path)
+        slip, found = DesignDocument.find_slip_days(path, processed)
 
         #check group size
         if len(group) == 0:
@@ -336,6 +397,32 @@ def load_dds():
         return pickle.load(f)
 
 
+def cross_reference(docs):
+    """Try to update all students with info from other groups
+    O(n^2) at least
+    """
+    for i, doc in enumerate(docs):
+        for odoc in docs[i + 1:]:
+            for s in odoc.group:
+                doc.student.update_other(s)
+                s.update_other(doc.student)
+            if doc.student.matches(odoc.student):
+                logging.error("Double design document detected '%s' and '%s'" % (doc.path, odoc.path))
+
+
+def clean_empty_students(docs):
+    for d in docs:
+        ng = []
+        for s in d.group:
+            if not s.is_valid():
+                logging.debug("Removing invalid student %s from %s" % (s, d.path))
+            else:
+                ng.append(s)
+        if not ng:
+            logging.critical("Removed all students from %s" % (d.path))
+        d.group = ng
+
+
 def read_design_doc(path):
     """Read a design doc file into a string, wrapper to handle encoding problems"""
     # TODO maybe use chardet to get the encoding here instead
@@ -363,6 +450,7 @@ def create_design_docs(src):
             if dd is not None:
                 docs.append(dd)
 
+    cross_reference(docs)
     return docs
 
 
