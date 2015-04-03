@@ -8,6 +8,7 @@ import zipfile
 import csv
 
 import logging
+from collections import defaultdict
 
 CONFIG_NAME = 'ddgrader.cfg'
 
@@ -217,6 +218,9 @@ class Student:
     def __str__(self):
         return '(' + ', '.join(['%s:%s' % (a, getattr(self, a)) for a in Student.attr_list]) + ')'
 
+    def short(self):
+        return '(name:%s, eid:%s)' % (self.name, self.eid)
+
     def __eq__(self, other):
         if not isinstance(other, Student):
             return NotImplemented
@@ -297,10 +301,6 @@ class DesignDocument:
             for s in group[1:]:
                 if not s.hasRanking() or s.ranking not in rank_order:
                     logging.warning("'%s': Bad/Missing Ranking (eid:%s, ranking:'%s')" % (path, s.eid, s.ranking))
-
-                # TODO move to a report generator
-                elif rank_order[s.ranking] <= rank_order[Configger().report_thresh()]:
-                    logging.error("%s Ranked %s as %s" % (group[0].eid, s.eid, s.ranking))
 
             return DesignDocument(os.path.abspath(path), group[0], group[1:], slip)
 
@@ -405,6 +405,37 @@ def load_dds():
         return pickle.load(f)
 
 
+def poorly_ranked(s):
+    """Return if they have a poor ranking"""
+
+    return s.ranking in rank_order and rank_order[s.ranking] <= rank_order[Configger().report_thresh()]
+
+
+def generate_report(docs):
+    """Generate reports about who was ranked badly"""
+
+    # TODO update this code
+    bad_eid_reporters = defaultdict(list)
+    bad_eid_student = dict()
+
+    # get all bad students
+    for dd in docs:
+        if not dd.group:
+            print("%s listed no group members" % dd.student)
+        for s in dd.group:
+            if poorly_ranked(s):
+                bad_eid_student[s.eid] = s
+
+    # second pass to get all ratings for bad students
+    for dd in docs:
+        for s in dd.group:
+            if s.eid in bad_eid_student:
+                bad_eid_reporters[s.eid].append((dd.student, s.ranking))
+
+    for eid in bad_eid_reporters:
+        bad_rankers = ', '.join('%s=>%s' % (s.short(), r) for s, r in bad_eid_reporters[eid])
+        print('%s ranked poorly by {%s}' % (bad_eid_student[eid].short(), bad_rankers))
+
 def cross_reference(docs):
     """Try to update all students with info from other groups
     O(n^2) at least
@@ -464,6 +495,7 @@ def create_design_docs(src, subset=None):
 
     cross_reference(docs)
     clean_empty_students(docs)
+    generate_report(docs)
     return docs
 
 
