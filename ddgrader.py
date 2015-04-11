@@ -261,6 +261,7 @@ class DesignDocument:
             return 0, False
 
 
+    # TODO option skip rankings if we are just parsing readmes
     @staticmethod
     def from_design_doc(path, doc_string):
         """Create a design document from the contents of a file given by doc_string"""
@@ -320,8 +321,8 @@ def link_code(dest, eids, impl_dir):
             goal = d
             cnt = cnt + 1
 
-    if cnt != 1:
-        print("Error: student in multiple groups or missing implementation for '%s'" % dest)
+    if cnt == 0:
+        logging.error("missing implementation for '%s'" % dest)
     else:
         target = os.path.join(dest, Configger().code_name())
         if not os.path.lexists(target):
