@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import argparse
 
-import re, os, sys, shutil, pickle
+import re, os, shutil, pickle
 import subprocess
 import configparser
 import zipfile
@@ -10,18 +10,17 @@ import csv
 import logging
 from collections import defaultdict
 
-CONFIG_NAME = 'ddgrader.cfg'
-
 rank_order = {
-'no show': 0,
-'superficial': 1,
-'unsatisfactory': 2,
-'deficient': 3,
-'marginal': 4,
-'satisfactory': 5,
-'very good': 6,
-'excellent': 7
+    'no show': 0,
+    'superficial': 1,
+    'unsatisfactory': 2,
+    'deficient': 3,
+    'marginal': 4,
+    'satisfactory': 5,
+    'very good': 6,
+    'excellent': 7
 }
+
 
 class Singleton(type):
     _instances = {}
@@ -32,11 +31,13 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-#singleton class for configuration information. This is weird and stolen from stackoverflow
+# singleton class for configuration information. This is weird and stolen from stackoverflow
 class Configger(metaclass=Singleton):
+    config_name = 'ddgrader.cfg'
+
     def __init__(self, fname=None):
         if fname is None:
-            fname = CONFIG_NAME
+            fname = Configger.config_name
         self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         if (os.path.exists(fname)):
             self.config.read(fname)
@@ -86,7 +87,6 @@ class Configger(metaclass=Singleton):
 
     def grade_column(self):
         return int(self.config.get('grader', 'grade_column', fallback=-1))
-
 
 
 class DesignDocParseError(Exception):
@@ -339,7 +339,7 @@ def link_group(root, dest, dd):
             if os.path.lexists(target) or os.path.exists(target):  #remove broken links
                 os.unlink(target)
             os.symlink(os.path.abspath(os.path.join(root,
-                member.getDirectoryName(), Configger().feedback_name())), target)
+                                                    member.getDirectoryName(), Configger().feedback_name())), target)
 
 
 def link_dd(dest, dd):
@@ -437,6 +437,7 @@ def generate_report(docs):
         bad_rankers = ', '.join('%s=>%s' % (s.short(), r) for s, r in bad_eid_reporters[eid])
         print('%s ranked poorly by {%s}' % (bad_eid_student[eid].short(), bad_rankers))
 
+
 def cross_reference(docs):
     """Try to update all students with info from other groups
     O(n^2) at least
@@ -509,10 +510,8 @@ class Command:
         """args should be the name of the command, followed by any parameters"""
         raise NotImplementedError()
 
-    def short_help(self):
-        raise NotImplementedError()
-
-    def usage(self):
+    def add_parser(self, subparser):
+        """Command builds an argparse subparser and adds it to subparser"""
         raise NotImplementedError()
 
 
@@ -520,19 +519,14 @@ class MineCommand(Command):
     """MineCommand creates the initial design document database"""
     cmd = 'mine'
 
-    def do_cmd(self, args):
-        if len(args) == 1:
-            raise InvalidCommandException()
-        else:
-            docs = create_design_docs(args[1])
-            print("Created %d Design Document Objects" % len(docs))
-            store_dds(docs)
+    def do_cmd(self, parsed):
+        docs = create_design_docs(parsed.unpacked)
+        print("Created %d Design Document Objects" % len(docs))
+        store_dds(docs)
 
-    def short_help(self):
-        return "Create a DB of design documents from submissions"
-
-    def usage(self):
-        return "mine <unpacked_dir>"
+    def add_parser(self, subparser):
+        parser = subparser.add_parser(self.cmd, help='parses student design documents')
+        parser.add_argument('unpacked', help='Directory of unpacked design documents')
 
 
 class SetupCommand(Command):
@@ -541,27 +535,22 @@ class SetupCommand(Command):
     """
     cmd = 'setup'
 
-    def do_cmd(self, args):
-        if len(args) < 2:
-            print(self.usage())
-            raise InvalidCommandException()
-        else:
-            docs = load_dds()
-            dest_dir = Configger().student_dir()
-            impl_dir = args[1]
-            feedback_templ = Configger().feedback_template()
+    def do_cmd(self, parsed):
+        docs = load_dds()
+        dest_dir = Configger().student_dir()
+        impl_dir = parsed.impl_dir
+        feedback_templ = Configger().feedback_template()
 
-            if not os.path.exists(dest_dir):
-                os.mkdir(dest_dir)
+        if not os.path.exists(dest_dir):
+            os.mkdir(dest_dir)
 
-            make_directories(dest_dir, docs)
-            setup_grading(dest_dir, docs, impl_dir, feedback_templ)
+        make_directories(dest_dir, docs)
+        setup_grading(dest_dir, docs, impl_dir, feedback_templ)
 
-    def short_help(self):
-        return "Sets up directories for each student and links their dd, implentation, and template"
-
-    def usage(self):
-        return ("setup <impl_dir>")
+    def add_parser(self, subparser):
+        parser = subparser.add_parser(self.cmd,
+                                      help='creates grading directory structure using parsed design doc information')
+        parser.add_argument('impl_dir', help='directory of group code implementations made with project_prepare')
 
 
 class Grader:
@@ -659,20 +648,19 @@ class Grader:
 class GradeCommand(Command):
     cmd = 'grade'
 
-    def do_cmd(self, args):
+    def do_cmd(self, parsed):
         direc = Configger().student_dir()
         g = Grader(direc)
 
-        if len(args) > 1:
-            g.grade(args[1].lower())
+        if parsed.student is not None:
+            g.grade(parsed.student.lower())
         else:
             g.loop()
 
-    def short_help(self):
-        return "grade design documents in alphabetical order. Open the editor for each one"
 
-    def usage(self):
-        return ("grade")
+    def add_parser(self, subparser):
+        parser = subparser.add_parser(self.cmd, help='opens all files for grading design documents in a loop')
+        parser.add_argument('-s', '--student', help='eid of a specific student to grade')
 
 
 class EditCommand(Command):
@@ -685,8 +673,6 @@ class EditCommand(Command):
 class CollectCommand(Command):
     cmd = 'collect'
 
-    def __init__(self):
-        pass
 
     def fetch_grade(self, rex, path):
         with open(path, 'r') as f:
@@ -736,73 +722,42 @@ class CollectCommand(Command):
 
         print("Created %s to submit" % fname)
 
-    def do_cmd(self, args):
-        name = 'feedbacks.zip'
-        grade_file = ''
-        grade_out = 'output.csv'
-        if len(args) > 1:
-            grade_file = args[1]
-        else:
-            print(self.usage())
-            return
+    def do_cmd(self, parsed):
+        self.collect_files(parsed.zip)
+        self.collect_grades(parsed.gradescsv, parsed.csv)
 
-        if len(args) > 2:
-            grade_out = args[2]
-        if len(args) > 3:
-            name = args[3]
+    def add_parser(self, subparser):
+        parser = subparser.add_parser(self.cmd, help='generate grades and prepare submission to canvas')
 
-        self.collect_files(name)
-        self.collect_grades(grade_file, grade_out)
-
-    def short_help(self):
-        return "collect feedback forms, rename them and zip them up"
-
-    def usage(self):
-        return "collect <grade.csv> [name]"
+        parser.add_argument('gradescsv', help='csv of grades exported from canvas')
+        parser.add_argument('-z', '--zip', default='feedbacks.zip',
+                            help='name of zipfile for feedbacks, defaults to <feedbacks.zip>')
+        parser.add_argument('-c', '--csv', default='output.csv',
+                            help='name of generated grade csv to import, defaults to <output.csv>')
 
 
-class HelpCommand(Command):
-    cmd = 'help'
-
-    def __init__(self, cmds=[]):
-        self.cmds = cmds
-
-    def do_cmd(self, args):
-        if len(args) == 1:
-            print("Usage: ddgrader <cmd> [args]")
-            for cmd in self.cmds:
-                print("%s:\t\t%s" % (cmd.cmd, cmd.short_help()))
-        else:
-            found = False
-            for cmd in self.cmds:
-                if args[1] == cmd.cmd:
-                    print('%s\n%s' % (cmd.usage(), cmd.short_help()))
-                    found = True
-                    break
-            if not found:
-                print("No such command")
-
-    def short_help(self):
-        return "Prints a help message, pass command for specific help"
-
-    def usage(self):
-        return "help [cmd]"
-
-# entry point
-if __name__ == '__main__':
-    cmds = [MineCommand(), SetupCommand(), GradeCommand(), CollectCommand()]
-
-    hlp = HelpCommand(cmds)
-    cmds.append(hlp)
-
+def build_parsers(cmds):
+    """Builds the argument parser from the cmds objects"""
     root_parser = argparse.ArgumentParser()
-    # TODO this should be done with subparsers instead
-    root_parser.add_argument('command', help="command to execute", choices=[c.cmd for c in cmds])
     root_parser.add_argument('-l', '--logfile', help="Path of file to log to, default to stdout")
     root_parser.add_argument('-L', '--loglevel', help="Logging level", default='warning',
                              choices=['info', 'warning', 'error', 'critical', 'debug'])
-    root_parser.add_argument('args', nargs=argparse.REMAINDER)
-    parsed = root_parser.parse_args()
+    root_parser.add_argument('-c', '--config', help="config file to use, defaults to <ddgrader.cfg>",
+                             default='ddgrader.cfg')
+    subparsers = root_parser.add_subparsers(dest='subparser_name', help="commands")
+
+    for cmd in cmds:
+        cmd.add_parser(subparsers)
+
+    return root_parser
+
+
+# entry point
+if __name__ == '__main__':
+    cmds = [MineCommand(), SetupCommand(), CollectCommand(), GradeCommand()]
+
+    parser = build_parsers(cmds)
+    parsed = parser.parse_args()
 
     # setup logging
     numeric_level = getattr(logging, parsed.loglevel.upper(), None)
@@ -811,9 +766,12 @@ if __name__ == '__main__':
     else:
         logging.basicConfig(level=numeric_level, filename=parsed.logfile)
 
+    Configger.config_name = parsed.config
+
+    # delegate work to subcommand
     for c in cmds:
-        if c.cmd == parsed.command:
-            c.do_cmd([parsed.command, ] + parsed.args)
+        if c.cmd == parsed.subparser_name:
+            c.do_cmd(parsed)
 
     logging.shutdown()
 
