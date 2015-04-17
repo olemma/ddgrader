@@ -635,8 +635,9 @@ class Grader:
         student = self.next()
         print("Typing 'u' will not count the last opened student as graded")
         last = None
+        count = 0
         while (student is not None):
-            cmd = input("Grading %s, (u/x) 'x' to stop..." % student)
+            cmd = input("Grading %s (+%d), (u/x) 'x' to stop..." % (student, count))
             if cmd.strip().lower() == 'x':
                 break
             elif cmd.strip().lower() == 'u':
@@ -646,12 +647,13 @@ class Grader:
                     self.undo(last)
                     student = last
             else:
+                count += 1
                 self.edit(student)
                 self.done(student)
                 last = student
                 student = self.next()
 
-        print("Finished grading (%d/%d)" % (len(self.graded), len(os.listdir(self.directory))))
+        print("Finished grading (+%d %d/%d)" % (count, len(self.graded), len(os.listdir(self.directory))))
 
 
 class GradeCommand(Command):

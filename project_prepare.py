@@ -136,7 +136,7 @@ def main():
         if eids:
             if set(eids) & all_eids:
                 print("Student in multiple groups?")
-            if len(set(eids) == 1):
+            if len(set(eids)) == 1:
                 print("Student in solo group %s" % str(eids))
             all_eids.update(eids)
         cnt += 1
