@@ -8,18 +8,18 @@ import zipfile
 import csv
 
 import logging
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
-rank_order = {
-    'no show': 0,
-    'superficial': 1,
-    'unsatisfactory': 2,
-    'deficient': 3,
-    'marginal': 4,
-    'satisfactory': 5,
-    'very good': 6,
-    'excellent': 7
-}
+rank_order = OrderedDict([
+    ('no show', 0),
+    ('superficial', 1),
+    ('unsatisfactory', 2),
+    ('deficient', 3),
+    ('marginal', 4),
+    ('satisfactory', 5),
+    ('very good', 6),
+    ('excellent', 7)
+])
 
 
 class Singleton(type):
@@ -663,12 +663,35 @@ class GradeCommand(Command):
         parser.add_argument('-s', '--student', help='eid of a specific student to grade')
 
 
-class EditCommand(Command):
-    cmd = 'edit'
+class ReportRankingCommand(Command):
+    cmd = 'ranking'
 
-    def do_cmd(self, args):
-        pass
+    def do_cmd(self, parsed):
+        print("Report ranking")
 
+    def add_parser(self, subparser):
+        parser = subparser.add_parser(self.cmd, help='report students who were ranked poorly')
+        parser.add_argument('--ranking', '-r', default='marginal', help='the minimum ranking to count as poorly ranked',
+                            choices=rank_order.keys())
+        parser.add_argument('--all', action='store_true', help="also report every other group members ranking")
+
+
+class ReportCommand(Command):
+    cmd = 'report'
+    subcmds = [ReportRankingCommand(), ]
+
+    def do_cmd(self, parsed):
+        for sc in self.subcmds:
+            if parsed.report_subparser_name == sc.cmd:
+                sc.do_cmd(parsed)
+                return
+
+    def add_parser(self, subparser):
+        parser = subparser.add_parser(self.cmd, help='generates a report ')
+        report_subparsers = parser.add_subparsers(dest='report_subparser_name', help='report types')
+
+        for sc in self.subcmds:
+            sc.add_parser(report_subparsers)
 
 class CollectCommand(Command):
     cmd = 'collect'
@@ -754,7 +777,8 @@ def build_parsers(cmds):
 
 # entry point
 if __name__ == '__main__':
-    cmds = [MineCommand(), SetupCommand(), CollectCommand(), GradeCommand()]
+    cmds = [MineCommand(), SetupCommand(), CollectCommand(), GradeCommand(),
+            ReportCommand()]
 
     parser = build_parsers(cmds)
     parsed = parser.parse_args()
