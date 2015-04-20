@@ -1,0 +1,59 @@
+ddgrader
+=======
+DDgrader consists of a few tools to parse design documents, with the goal of speeding up their grading,
+and allowing for quick collection of relevant information. It is broken up into several commands like git
+so use `ddgrader mine`, `ddgrader setup` etc.
+
+
+`mine`
+----
+ddgrader mine
+The `mine` command is responsible for parsing all of the design documents and extracting student and group
+information. It expects one parameter which is a directory containing the unpacked design documents from Canvas.
+
+###Errors
+There are several test cases for the parsing/regexes but unfortunately some students just don't follow the
+ format and there is nothing that can be done! Using different logging levels `ddgrader -L debug mine unpacked`
+ allows the user to discover and hopefully rectify these issues. I've tried to categorize them, 
+ 
+* CRITICAL: the design document is empty or very wrong and may need to be rewritten,
+* ERROR: the design document is likely wrong, or lacking some significant information
+* WARNING: Student omitted some non-critical information (ranking, slip days)
+
+These should be repaired before running the `setup` command
+
+
+`setup`
+-----
+The `setup` command is responsible for taking the information from `mine` and the students' implementations
+and linking them together. It creates a directory for each student (by their eid) and symlinks the groups' code,
+symlinks their design documents, copies the grading template (configuration), and also symlinks other files from
+their partners who come alphabetically before them (currently)
+
+
+`grade`
+-----
+The `grade` command will automate the grading process by automatically opening all the relevant files for each student
+in a loop. These can be configured with the configuration (it optionally takes a eid of a specific student to grade)
+
+
+`collect`
+-------
+The `collect` command zips up the feedback forms and collects the grades into a form uploadable to canvas. It
+ requires the grading spreadsheet from canvas, and also the index of the column for the grade.
+
+
+Configuration
+=============
+ddgrader uses a config file for a lot of parameters. By default it assumes "ddgrader.cfg" in the current working directory,
+but can optionally specified with `--config` parameter. Copying the one from the repo is a good place to start.
+
+Development
+===========
+The code is in a local git repo (not mirrored online). The plan is to create a branch for each significant feature.
+and then merge it into master.
+
+currently it is all stuffed into one file `ddgrader.py`. This makes it easy to symlink to and run in
+other directories, but also pretty ugly. Potentially a big refactoring would greatly enhance readability.
+
+

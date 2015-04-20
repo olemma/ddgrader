@@ -62,7 +62,7 @@ class Configger(metaclass=Singleton):
         return self.config.get('setup', 'code_name', fallback='code')
 
     def dds_pickle_name(self):
-        return self.config.get('setup', 'dds_pickle_name', fallback='dds.pkl')
+        return self.config.get('setup', 'dds_pickle_name', fallback='.dds.pkl')
 
     def partner_pattern(self):
         return self.config.get('setup', 'partner_pattern', fallback='group%d_doc.txt')
@@ -80,7 +80,7 @@ class Configger(metaclass=Singleton):
         return self.config.get('grader', 'editor_abs_files', fallback='')
 
     def grader_pickle_name(self):
-        return self.config.get('grader', 'grader_pickle_name', fallback='grader.pkl')
+        return self.config.get('grader', 'grader_pickle_name', fallback='.grader.pkl')
 
     def grade_regex(self):
         return self.config.get('grader', 'grade_regex', fallback='')
@@ -473,8 +473,8 @@ def read_design_doc(path):
             return dd_file.read()
 
     except Exception as e:
-        logging.error(e)
-        logging.error("cannot read path '%s'" % path)
+        logging.critical(e)
+        logging.critical("cannot read path '%s'" % path)
 
 
 def create_design_docs(src, subset=None):
