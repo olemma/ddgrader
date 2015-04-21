@@ -1,0 +1,375 @@
+      +--------------------+
+      |        CS 439      |
+      | PROJECT 1: THREADS |
+      |   DESIGN DOCUMENT  |
+      +--------------------+
+
+****EACH student submits a (unique) design document.****
+
+---- Name ----
+
+>> Fill your name, UT EID, CS login, email address, and unique number:
+
+
+Name: Christina Saylor
+EID: cs23142
+CS login: wishiwasmorgan
+Email: gats@yahoo.com
+Unique Number: 2
+
+
+Slip days used on this project: 2
+
+---- GROUP ----
+
+>> Fill the names, UT EIDs, CS logins, email addresses, and unique numbers
+>> of your group members.  Also fill in each person's ranking on the
+>> partner evaluation scale, as determined by you.
+
+Name1: Esaul Sam
+EID1: e35252
+CS login: nsahuo
+Email: cats@utexas.edu
+Unique Number: 2346855
+Ranking (scale below): Marginal
+
+Name2: Johnny Travaillo
+EID2: ax634563
+CS login: jtrav
+Email: dogs@gmail.com
+Unique Number: 51875
+Ranking (scale below): No Show
+
+Name3: Jim Bean
+EID2: jb19
+CS login: jb19
+Email: geek@geek.com
+Unique Number: 88
+Ranking (scale below): Satisfactory
+
+Name4:
+EID2 :
+CS login:
+Email:
+Unique Number:
+Ranking (scale below):
+
+Name3: None
+EID2:
+CS login:
+Email:
+Unique Number:
+Ranking (scale below):
+
+---- PARTNER EVALUATION SCALE ----
+
+>> Excellent: Consistently went above and beyond - tutored others, carried
+>> more than his/her fair share of the load.
+
+>> Very Good: Consistently did what he/she was supposed to do, very well
+>> prepared and cooperative.
+
+>> Satisfactory: Usually did what he/she was supposed to do, minimally
+>> prepared and cooperative.
+
+>> Marginal: Sometimes failed to show up and/or rarely prepared.
+
+>> Deficient: Often failed to show up and/or rarely prepared.
+
+>> Unsatisfactory: Consistently failed to show up and/or unprepared.
+
+>> Superficial: Practically no participation.
+
+>> No Show: No participation at all.
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+I have been given an extension to 3/1 at 11:59pm by Professor Norman 
+because I received a concussion at the beginning on this project. If you 
+have any questions, please feel free to email me: andrea.coldwell@utexas.edu.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+           ALARM CLOCK
+           ===========
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+Added to struct thread: 
+/* Members for implementing timer_sleep() */
+  int64_t target;                 /* Number of ticks the thread should sleep */
+  struct list_elem blockedelem;   /* List element for threads waiting for target ticks to elapse */   
+  struct semaphore sema;          /* Use in timer_sleep() to avoid busy waiting */
+
+Added to timer.c:
+static struct list blocked_list;  /* List of sleeping threads waiting for target ticks to elapse */
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe what happens in a call to timer_sleep(),
+>> including the effects of the timer interrupt handler.
+
+Timer_sleep(int64_t ticks) is a function used to suspend the execution of 
+the calling thread until time has advanced by at least x timer ticks (rephrased
+from Project Page). When timer_sleep() is called, the thread's target ticks 
+is set to the number of ticks the thread should sleep and the thread is added to 
+the blocked list (a list of the threads waiting for target ticks to elapse). 
+The thread is then put to sleep with the call to sema_down. 
+
+When timer_interupt() is called, the list of sleeping threads (the blocked list) 
+is traversed and  each thread's target ticks is decremented. When the target number of
+ticks has elasped, the thread is removed from the blocked list and sema_up is
+called to wake up the thread and add it to the ready_list. 
+
+>> A3: What steps are taken to minimize the amount of time spent in
+>> the timer interrupt handler?
+
+When a thread is done sleeping, it is removed from the blocked list immediately
+and sema_up is called on the thread. The thread will be unblocked and added back
+to the ready_list in priority order. This helps maximize efficiency because 
+the ready_list is sorted in priority order. The blocked list is also implemented 
+as a list from list.c. Using the list.c class as a resource, we are better able 
+to manipulate the list. 
+
+---- SYNCHRONIZATION ----
+
+>> A4: How are race conditions avoided when multiple threads call
+>> timer_sleep() simultaneously?
+
+In order to prevent race conditions when multiple threads call timer_sleep(), 
+interupts are disabled while elements are being added to the list of sleeping
+threads. This ensures that only one thread is manipulating the list at a time.  
+
+>> A5: How are race conditions avoided when a timer interrupt occurs
+>> during a call to timer_sleep()?
+
+In timer_sleep(), interrupts are disabled when threads are being added to the list
+of blocked threads. This ensures that timer_sleep() cannot be interrupted when 
+changing the global variables and that only one thread can be editing the list 
+of blocked threads at a time. When a timer interrupt occurs during a call to 
+timer_sleep, if the thread is in the critical section, the interrupt will not be
+allowed, therefore race conditions are avoided. 
+
+---- RATIONALE ----
+
+>> A6: Why did you choose this design?  In what ways is it superior to
+>> another design you considered?
+
+Our implementation of timer_sleep() is simple. Target ticks is the variable that 
+keeps track of total ticks the thread should sleep. Threads are then added to 
+the list of blocked threads until the target number of ticks has elapsed. Another 
+design considered in our implementation did not use semaphores, but our final 
+implementation uses semaphores to avoid busy waiting. Another design option we 
+considered was sorting our blocked list in ticks order. After weighing the overhead cost, 
+we decided sorting the blocked list in ticks order would cost more when adding to the 
+list because we traverse through the entire list anyway. We also consider our 
+implementation of the blocked list to be more fair than the previously mentioned way.
+The blocked list implementation is considered consistent and simple.  
+
+       PRIORITY SCHEDULING
+       ===================
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+Added to struct thread: 
+/* Implemented for priority donation */
+int old_priority;                   /* Thread's original priority */
+struct list donators;               /* List of threads that are donating to this thread*/
+struct list_elem donateelem;        /* List element for the list of donating threads */
+struct lock *waiting_lock;          /* Lock that the thread is waiting on*/ 
+
+>> B2: Explain the data structure used to track priority donation.
+>> Use ASCII art to diagram a nested donation.  (Alternately, submit a
+>> .png file.)
+
+In the thread structure, we added a list of donators, element for the donators list, 
+a lock that the thread is waiting on, and an original priority variable. 
+
+The list of donators is a list in each thread that contains all the donated priorities. 
+The original priority is kept track of in each thread, so the thread can be set back 
+after priority donation. The waiting lock is a lock that the thread is waiting on. 
+
+For the example given in class, where H has a priority of 63, M has a priority of 50, and L
+has a priority of 10, the problem is that M needs the lock from L, and H needs the lock from 
+M. Below is ASCII art diagramming this situation. 
+ _________        _________          _________
+|         |      |         |        |         |
+|         |----->|       (lock)---->|       (lock)
+|    H    |      |    M    |        |    L    |
+| Pri:63  |      | Pri:50  |        | Pri:10  |
+|_________|      |_________|        |_________|
+
+ _________        _________          _________
+|         |      |         |        |         |
+|         |----->|       (lock)---->|       (lock)
+|    H    |      |    M    |        |    L    |
+| Pri:63  |      | Pri:63  |        | Pri:10  |
+|_________|      |_________|        |_________|
+
+ _________        _________          _________
+|         |      |         |        |         |
+|         |----->|       (lock)---->|       (lock)
+|    H    |      |    M    |        |    L    |
+| Pri:63  |      | Pri:63  |        | Pri:63  |
+|_________|      |_________|        |_________|
+Now L can release the lock and pass the lock to M. Which can then release the lock and 
+pass it to H, which is the thread with the "actual" highest priority. 
+
+---- ALGORITHMS ----
+
+>> B3: How do you ensure that the highest priority thread waiting for
+>> a lock, semaphore, or condition variable wakes up first?
+
+Every time an element is added to the ready list, it is added in 
+priority order. We created a comparator, sortByPriority, that compares
+two priorities so that list elements are added to the list from 
+greatest to least greatest priority. This ensures that when elements are
+poped from the list, the thread with the highest priority is woken up. The
+list of waiters is also sorted in order by priority. 
+
+>> B4: Describe the sequence of events when a call to lock_acquire()
+>> causes a priority donation.  How is nested donation handled?
+
+When lock_acquire() is called in the case of priority donation, the priority
+is donated if the current thread's priority is greater than the thread holding
+the lock's priority, if there is a thread holding the lock. If both of these 
+conditions are met, then the current thread donates its priority to the thread
+holding the lock. Then, the current thread is added to the holder's 
+list of donated priorities. For nested donation, the thread goes through a 
+while loop checking whether the thread is waiting on a lock. In this while loop,
+the priority is donated all the way down to the lower priority thread waiting on
+lock, until no more threads are waiting on a lock. 
+
+>> B5: Describe the sequence of events when lock_release() is called
+>> on a lock that a higher-priority thread is waiting for.
+
+Lock_release() handles this case by checking the donators list. If the thread
+has other threads waiting for its lock, then it checks the donators list and if
+the lock the thread is waiting on is the one that is being released by this 
+call to lock_release(), then it is removed from the list of donators. After 
+the lock is no longer being held, the lock is then released with the call to
+sema_up. 
+
+---- SYNCHRONIZATION ----
+
+>> B6: Describe a potential race in thread_set_priority() and explain
+>> how your implementation avoids it.  Can you use a lock to avoid
+>> this race?
+
+A potential race condition in thread_set_priority() could arise when the thread
+that is setting it's priority is suddenly interrupted by a thread attempting
+to donate its priority to it. In our implementation of thread set priority, 
+the method checks if donation is happening and the new priority is less than 
+the current priority. If the priority change causes the thread's priority to 
+lower, then you wait to apply it until after the donation has been lifted. 
+
+---- RATIONALE ----
+
+>> B7: Why did you choose this design?  In what ways is it superior to
+>> another design you considered?
+
+In our implementation of priority scheduling and donation, we use a list of 
+donators to keep track of all the priorities that have been donated to the 
+thread. This allows us to keep a history on the donations that have occured. 
+Our implementation uses few variables, keeping the design simplistic and easy
+to follow. In our first implementation of priority donations, we considered 
+using an array of priorities. But we decided against it because if something 
+was removed in the middle of array we had a problem. By using a list of donators, 
+we use the methods in list.c to make sure this problem is taken care of. 
+
+
+      ADVANCED SCHEDULER (Extra Credit)
+      =================================
+
+---- DATA STRUCTURES ----
+
+>> C1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+---- ALGORITHMS ----
+
+>> C2: Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
+>> has a recent_cpu value of 0.  Fill in the table below showing the
+>> scheduling decision and the priority and recent_cpu values for each
+>> thread after each given number of timer ticks:
+
+timer  recent_cpu    priority   thread
+ticks   A   B   C   A   B   C   to run
+-----  --  --  --  --  --  --   ------
+ 0
+ 4
+ 8
+12
+16
+20
+24
+28
+32
+36
+
+>> C3: Did any ambiguities in the scheduler specification make values
+>> in the table uncertain?  If so, what rule did you use to resolve
+>> them?  Does this match the behavior of your scheduler?
+
+>> C4: How is the way you divided the cost of scheduling between code
+>> inside and outside interrupt context likely to affect performance?
+
+---- RATIONALE ----
+
+>> C5: Briefly critique your design, pointing out advantages and
+>> disadvantages in your design choices.  If you were to have extra
+>> time to work on this part of the project, how might you choose to
+>> refine or improve your design?
+
+>> C6: The assignment explains arithmetic for fixed-point math in
+>> detail, but it leaves it open to you to implement it.  Why did you
+>> decide to implement it the way you did?  If you created an
+>> abstraction layer for fixed-point math, that is, an abstract data
+>> type and/or a set of functions or macros to manipulate fixed-point
+>> numbers, why did you do so?  If not, why not?
+
+         SURVEY QUESTIONS
+         ================
+
+Answering these questions is optional, but it will help us improve the
+course in future semesters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the semester.
+
+>> In your opinion, was this assignment, or any one of the two problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+We had trouble implementing our priority donation. We tried several different
+approaches but ended up deciding on the donators list because this is when 
+we started passing the most tests. 
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future semesters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future semesters or the remaining projects?
+
+Can there be more office hours on friday, the day the project is due. We waited
+for the TAs help for 2 hours and never got the questions answered. 
+
+>> Any other comments?

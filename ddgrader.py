@@ -8,7 +8,7 @@ import zipfile
 import csv
 
 import logging
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, namedtuple
 
 rank_order = OrderedDict([
     ('no show', 0),
@@ -642,7 +642,7 @@ class ReportRankingCommand(Command):
         """Return if they have a poor ranking"""
         return s.ranking in rank_order and rank_order[s.ranking] <= rank_order[thresh]
 
-    def generate_report(self, docs, threshold, report_all=false):
+    def generate_report(self, docs, threshold, report_all=False):
         """Generate reports about who was ranked badly
         returns a dict of eid => RREntry(student, bad_rankers(list), pos_rankers(list)
         """
@@ -678,7 +678,7 @@ class ReportRankingCommand(Command):
     def print_report(self, report):
         """Pretty print a report made by generate_report"""
         for eid in report:
-            print("%s ranked poorly by %d student(s):" % (stuff, len(report[eid].bad_rankers)))
+            print("%s ranked poorly by %d student(s):" % (report[eid].student.short(), len(report[eid].bad_rankers)))
 
             for s,rank in report[eid].bad_rankers:
                 print("\t%s\t==> %s" % (s.short(), rank.title()))
@@ -689,10 +689,10 @@ class ReportRankingCommand(Command):
                 for s,rank in report[eid].pos_rankers:
                     print("\t%s\t==> %s" % (s.short(), rank.title()))
 
-                print()
+            print()
 
     def do_cmd(self, parsed):
-        parsed.ranking = parsed.ranking.replace('_', ' ')
+        parsed.ranking = parsed.thresh.replace('_', ' ')
         dds = load_dds()
         report = self.generate_report(dds, parsed.thresh, parsed.all)
         self.print_report(report)
