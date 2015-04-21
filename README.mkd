@@ -22,6 +22,17 @@ There are several test cases for the parsing/regexes but unfortunately some stud
 
 These should be repaired before running the `setup` command
 
+`report`
+--------
+The `report` command is responsible for reporting interesting things about a collection of design documents.
+It is composed of (several) subcommands, listed below.
+
+###`report ranking`
+`report ranking` will generate a report showing students who have been ranked poorly by their
+group members. This requires the `mine` command to have been previously successfully executed
+
+see `report ranking --help` for additional parameters. It is possible to set a different threshold for
+reporting (--thresh) as well as include all member rankings for poorly ranked students (--all)
 
 `setup`
 -----
@@ -47,13 +58,3 @@ Configuration
 =============
 ddgrader uses a config file for a lot of parameters. By default it assumes "ddgrader.cfg" in the current working directory,
 but can optionally specified with `--config` parameter. Copying the one from the repo is a good place to start.
-
-Development
-===========
-The code is in a local git repo (not mirrored online). The plan is to create a branch for each significant feature.
-and then merge it into master.
-
-currently it is all stuffed into one file `ddgrader.py`. This makes it easy to symlink to and run in
-other directories, but also pretty ugly. Potentially a big refactoring would greatly enhance readability.
-
-
