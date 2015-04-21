@@ -1,0 +1,14 @@
+Development
+===========
+The code is in a local git repo (not mirrored online). The plan is to create a branch for each significant feature.
+and then merge it into master. 
+
+You can create a clone of the repo with
+
+`git clone /projects/cs439-norman/TA_Scripts/ddgrader`
+
+You can then push & pull commits to this local repository (it is set as a remote origin). No idea how these are managed in terms of permissions
+
+currently it is all stuffed into one file `ddgrader.py`. This makes it easy to symlink to and run in
+other directories, but also pretty ugly. Potentially a big refactoring would greatly enhance readability.
+
