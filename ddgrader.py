@@ -219,7 +219,7 @@ class Student:
         return '(' + ', '.join(['%s:%s' % (a, getattr(self, a)) for a in Student.attr_list]) + ')'
 
     def short(self):
-        return '(name:%s, eid:%s)' % (self.name, self.eid)
+        return 'name:%s, eid:%s' % (self.name.title(), self.eid)
 
     def __eq__(self, other):
         if not isinstance(other, Student):
@@ -400,42 +400,14 @@ class MissingDDSException(Exception):
 def load_dds():
     """Unpickle the design_docs list"""
     if not os.path.exists(Configger().dds_pickle_name()):
+        logging.critical("Missing DD database. Have you run the mine command?")
         raise MissingDDSException()
 
     with open(Configger().dds_pickle_name(), 'rb') as f:
         return pickle.load(f)
 
 
-def poorly_ranked(s):
-    """Return if they have a poor ranking"""
 
-    return s.ranking in rank_order and rank_order[s.ranking] <= rank_order[Configger().report_thresh()]
-
-
-def generate_report(docs):
-    """Generate reports about who was ranked badly"""
-
-    # TODO update this code
-    bad_eid_reporters = defaultdict(list)
-    bad_eid_student = dict()
-
-    # get all bad students
-    for dd in docs:
-        if not dd.group:
-            print("%s listed no group members" % dd.student)
-        for s in dd.group:
-            if poorly_ranked(s):
-                bad_eid_student[s.eid] = s
-
-    # second pass to get all ratings for bad students
-    for dd in docs:
-        for s in dd.group:
-            if s.eid in bad_eid_student:
-                bad_eid_reporters[s.eid].append((dd.student, s.ranking))
-
-    for eid in bad_eid_reporters:
-        bad_rankers = ', '.join('%s=>%s' % (s.short(), r) for s, r in bad_eid_reporters[eid])
-        print('%s ranked poorly by {%s}' % (bad_eid_student[eid].short(), bad_rankers))
 
 
 def cross_reference(docs):
@@ -497,7 +469,6 @@ def create_design_docs(src, subset=None):
 
     cross_reference(docs)
     clean_empty_students(docs)
-    generate_report(docs)
     return docs
 
 
@@ -663,17 +634,75 @@ class GradeCommand(Command):
         parser.add_argument('-s', '--student', help='eid of a specific student to grade')
 
 
+
 class ReportRankingCommand(Command):
     cmd = 'ranking'
 
+    def poorly_ranked(self, s, thresh):
+        """Return if they have a poor ranking"""
+        return s.ranking in rank_order and rank_order[s.ranking] <= rank_order[thresh]
+
+    def generate_report(self, docs, threshold, report_all=false):
+        """Generate reports about who was ranked badly
+        returns a dict of eid => RREntry(student, bad_rankers(list), pos_rankers(list)
+        """
+
+        bad_eid_reporters = defaultdict(list)
+        other_eid_reporters = defaultdict(list)
+        bad_eid_student = dict()
+
+        # get all bad students
+        for dd in docs:
+            if not dd.group:
+                logging.warning("%s listed no group members" % dd.student)
+            for s in dd.group:
+                if self.poorly_ranked(s, threshold):
+                    bad_eid_student[s.eid] = s
+                    bad_eid_reporters[s.eid].append((dd.student, s.ranking))
+
+        # second pass to get all ratings for bad students
+        if report_all:
+            for dd in docs:
+                for s in dd.group:
+                    if s.eid in bad_eid_student and not self.poorly_ranked(s, threshold):
+                        other_eid_reporters[s.eid].append((dd.student, s.ranking))
+
+        res = {}
+        RREntry = namedtuple('RREntry', ['student', 'bad_rankers', 'pos_rankers'])
+        for eid in bad_eid_student:
+            res[eid] = RREntry(bad_eid_student[eid], bad_eid_reporters[eid], other_eid_reporters[eid])
+
+        return res
+
+
+    def print_report(self, report):
+        """Pretty print a report made by generate_report"""
+        for eid in report:
+            print("%s ranked poorly by %d student(s):" % (stuff, len(report[eid].bad_rankers)))
+
+            for s,rank in report[eid].bad_rankers:
+                print("\t%s\t==> %s" % (s.short(), rank.title()))
+
+            if report[eid].pos_rankers:
+                print("Other group members:")
+
+                for s,rank in report[eid].pos_rankers:
+                    print("\t%s\t==> %s" % (s.short(), rank.title()))
+
+                print()
+
     def do_cmd(self, parsed):
-        print("Report ranking")
+        parsed.ranking = parsed.ranking.replace('_', ' ')
+        dds = load_dds()
+        report = self.generate_report(dds, parsed.thresh, parsed.all)
+        self.print_report(report)
 
     def add_parser(self, subparser):
         parser = subparser.add_parser(self.cmd, help='report students who were ranked poorly')
-        parser.add_argument('--ranking', '-r', default='marginal', help='the minimum ranking to count as poorly ranked',
-                            choices=rank_order.keys())
+        parser.add_argument('--thresh', default='marginal', help='the minimum ranking to count as poorly ranked',
+                            choices=[s.replace(' ', '_') for s in rank_order.keys()])
         parser.add_argument('--all', action='store_true', help="also report every other group members ranking")
+        # parser.add_argument('--missing', '-m', action="store_true", help="report students that have no ranking")
 
 
 class ReportCommand(Command):
