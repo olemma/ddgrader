@@ -35,6 +35,28 @@ class Singleton(type):
 class Configger(metaclass=Singleton):
     config_name = 'ddgrader.cfg'
 
+    setup_items = {
+        'report_thresh' : 'marginal',
+        'design_doc_name' : 'design_doc.txt',
+        'student_dir' : 'students',
+        'feedback_name' : 'feedback.txt',
+        'feedback_template' : 'template.txt',
+        'code_name' : 'code',
+        'dds_pickle_name' : '.dds.pkl',
+        'partner_pattern' : 'group%d_doc.txt',
+    }
+
+    grade_items = {
+        'editor' : 'vim',
+        'editor_args' : '-p',
+        'editor_rel_files' : '',
+        'grader_pickle-name' : '.grader.pkl',
+        'grade_regex' : '',
+        'grade_column' : -1
+    }
+
+    sections =  {'grade' : grade_items, 'setup' : setup_items}
+
     def __init__(self, fname=None):
         if fname is None:
             fname = Configger.config_name
@@ -43,50 +65,11 @@ class Configger(metaclass=Singleton):
             self.config.read(fname)
 
 
-    def report_thresh(self):
-        return self.config.get('setup', 'report_thresh', fallback='unsatisfactory')
-
-    def design_doc_name(self):
-        return self.config.get('setup', 'design_doc_name', fallback='design_doc.txt')
-
-    def student_dir(self):
-        return self.config.get('setup', 'student_dir', fallback='students')
-
-    def feedback_name(self):
-        return self.config.get('setup', 'feedback_name', fallback='feedback.txt')
-
-    def feedback_template(self):
-        return self.config.get('setup', 'feedback_template', fallback='template.txt')
-
-    def code_name(self):
-        return self.config.get('setup', 'code_name', fallback='code')
-
-    def dds_pickle_name(self):
-        return self.config.get('setup', 'dds_pickle_name', fallback='.dds.pkl')
-
-    def partner_pattern(self):
-        return self.config.get('setup', 'partner_pattern', fallback='group%d_doc.txt')
-
-    def editor(self):
-        return self.config.get('grader', 'editor', fallback='vim')
-
-    def editor_args(self):
-        return self.config.get('grader', 'editor_args', fallback='-p')
-
-    def editor_rel_files(self):
-        return self.config.get('grader', 'editor_rel_files', fallback='')
-
-    def editor_abs_files(self):
-        return self.config.get('grader', 'editor_abs_files', fallback='')
-
-    def grader_pickle_name(self):
-        return self.config.get('grader', 'grader_pickle_name', fallback='.grader.pkl')
-
-    def grade_regex(self):
-        return self.config.get('grader', 'grade_regex', fallback='')
-
-    def grade_column(self):
-        return int(self.config.get('grader', 'grade_column', fallback=-1))
+    def __getattr__(self, attr_name):
+        for section_name, keydefdict in self.sections.items():
+            if attr_name in keydefdict:
+                return self.config.get(section_name, attr_name, fallback=keydefdict[attr_name])
+        raise AttributeError
 
 
 class DesignDocParseError(Exception):
@@ -324,7 +307,7 @@ def link_code(dest, eids, impl_dir):
     if cnt == 0:
         logging.error("missing implementation for '%s'" % dest)
     else:
-        target = os.path.join(dest, Configger().code_name())
+        target = os.path.join(dest, Configger().code_name)
         if not os.path.lexists(target):
             os.symlink(os.path.abspath(os.path.join(impl_dir, goal)), target)
 
@@ -335,17 +318,17 @@ def link_group(root, dest, dd):
     """
     for i, member in enumerate(dd.group):
         if member.eid < dd.student.eid:
-            target = os.path.join(dest, Configger().partner_pattern() % (i))
+            target = os.path.join(dest, Configger().partner_pattern % (i))
             if os.path.lexists(target) or os.path.exists(target):  #remove broken links
                 os.unlink(target)
             os.symlink(os.path.abspath(os.path.join(root,
-                                                    member.getDirectoryName(), Configger().feedback_name())), target)
+                                                    member.getDirectoryName(), Configger().feedback_name)), target)
 
 
 def link_dd(dest, dd):
     """Create a symlink to the student's design doc in their new folder
     """
-    target = os.path.join(dest, Configger().design_doc_name())
+    target = os.path.join(dest, Configger().design_doc_name)
 
     if not os.path.exists(target):
         os.symlink(dd.path, target)
@@ -361,7 +344,7 @@ def make_directories(dest, design_docs):
 
 def copy_template(dest, design_doc, template):
     """Copy the grading template into each student's directory"""
-    target = os.path.join(dest, Configger().feedback_name())
+    target = os.path.join(dest, Configger().feedback_name)
     if not os.path.exists(target):
         shutil.copyfile(template, target)
 
@@ -388,7 +371,7 @@ def setup_grading(dest, design_docs, impl_dir, template):
 
 def store_dds(design_docs):
     """Pickle the design_docs list"""
-    with open(Configger().dds_pickle_name(), 'wb') as f:
+    with open(Configger().dds_pickle_name, 'wb') as f:
         pickle.dump(design_docs, f)
         f.flush()
 
@@ -399,11 +382,11 @@ class MissingDDSException(Exception):
 
 def load_dds():
     """Unpickle the design_docs list"""
-    if not os.path.exists(Configger().dds_pickle_name()):
+    if not os.path.exists(Configger().dds_pickle_name):
         logging.critical("Missing DD database. Have you run the mine command?")
         raise MissingDDSException()
 
-    with open(Configger().dds_pickle_name(), 'rb') as f:
+    with open(Configger().dds_pickle_name, 'rb') as f:
         return pickle.load(f)
 
 
@@ -508,9 +491,9 @@ class SetupCommand(Command):
 
     def do_cmd(self, parsed):
         docs = load_dds()
-        dest_dir = Configger().student_dir()
+        dest_dir = Configger().student_dir
         impl_dir = parsed.impl_dir
-        feedback_templ = Configger().feedback_template()
+        feedback_templ = Configger().feedback_template
 
         if not os.path.exists(dest_dir):
             os.mkdir(dest_dir)
@@ -530,8 +513,8 @@ class Grader:
 
     def __init__(self, directory):
         self.directory = directory
-        if os.path.exists(Configger().grader_pickle_name()):
-            with open(Configger().grader_pickle_name(), 'rb') as f:
+        if os.path.exists(Configger().grader_pickle_name):
+            with open(Configger().grader_pickle_name, 'rb') as f:
                 self.graded = pickle.load(f)
 
     def next(self):
@@ -553,7 +536,7 @@ class Grader:
         self.store()
 
     def store(self):
-        with open(Configger().grader_pickle_name(), 'wb') as f:
+        with open(Configger().grader_pickle_name, 'wb') as f:
             pickle.dump(self.graded, f)
 
     def grade(self, student):
@@ -571,21 +554,21 @@ class Grader:
         """Build the editor command line and open the editor for a file"""
         path = os.path.join(self.directory, student)
 
-        args = [Configger().editor()]
-        args += [x.strip() for x in Configger().editor_args().split(',')]
+        args = [Configger().editor, ]
+        args += [x.strip() for x in Configger().editor_args.split(',')]
         args += [
-            os.path.join(path, Configger().feedback_name()),
-            os.path.join(path, Configger().design_doc_name()),
+            os.path.join(path, Configger().feedback_name),
+            os.path.join(path, Configger().design_doc_name),
         ]
 
         #hacky way to any symlinks to partners' design docs
         for i, f in enumerate(os.listdir(path)):
-            group_dd = os.path.join(path, Configger().partner_pattern() % i)
+            group_dd = os.path.join(path, Configger().partner_pattern % i)
             if os.path.exists(group_dd):
                 args.append(group_dd)
 
-        args += [os.path.join(path, x.strip()) for x in Configger().editor_rel_files().split(',')]
-        args += [x.strip() for x in Configger().editor_abs_files().split(',')]
+        args += [os.path.join(path, x.strip()) for x in Configger().editor_rel_files.split(',')]
+        args += [x.strip() for x in Configger().editor_abs_files.split(',')]
 
         #do work son
         subprocess.call(args)
@@ -620,7 +603,7 @@ class GradeCommand(Command):
     cmd = 'grade'
 
     def do_cmd(self, parsed):
-        direc = Configger().student_dir()
+        direc = Configger().student_dir
         g = Grader(direc)
 
         if parsed.student is not None:
@@ -742,9 +725,9 @@ class CollectCommand(Command):
         print("Missing student %s in gradefile!" % eid)
 
     def collect_grades(self, grade_file, oput):
-        raw_regex = Configger().grade_regex()
+        raw_regex = Configger().grade_regex
         rex = re.compile(raw_regex, re.I)
-        column = Configger().grade_column()
+        column = Configger().grade_column
 
         rows = []
         with open(grade_file, 'r', newline='') as f:
@@ -753,7 +736,8 @@ class CollectCommand(Command):
 
         dds = load_dds()
         for dd in dds:
-            path = os.path.join(Configger().student_dir(), dd.student.getDirectoryName(), Configger().feedback_name())
+            path = os.path.join(Configger().student_dir, dd.student.getDirectoryName(),
+                                Configger().feedback_name)
             g = self.fetch_grade(rex, path)
             self.update_grade(rows, dd.student.eid, g, column)
 
@@ -767,7 +751,8 @@ class CollectCommand(Command):
         sub_file = zipfile.ZipFile(fname, mode='w')
 
         for dd in dds:
-            path = os.path.join(Configger().student_dir(), dd.student.getDirectoryName(), Configger().feedback_name())
+            path = os.path.join(Configger().student_dir, dd.student.getDirectoryName(),
+                                Configger().feedback_name)
             sub_file.write(path, os.path.basename(dd.path))
 
         sub_file.close()
