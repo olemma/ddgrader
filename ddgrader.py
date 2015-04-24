@@ -641,8 +641,8 @@ class ReportSlipCommand(Command):
         self.print_report(report)
 
     def add_parser(self, subparser):
-        parser = subparser.add_parser(self.cmd, help='report student-reported slip days for design documents')
-        parser.add_argument('--all', action='store_true', help="Report also zero slip days")
+        parser = subparser.add_parser(self.cmd, help='report student-reported non-zero slip days for design documents')
+        parser.add_argument('--all', action='store_true', help="Also report zero slip days")
 
 class ReportRankingCommand(Command):
     cmd = 'ranking'

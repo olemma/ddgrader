@@ -1,7 +1,6 @@
 Development
 ===========
-The code is in a local git repo (not mirrored online). The plan is to create a branch for each significant feature.
-and then merge it into master. 
+The code is in a local git repo (not mirrored online). 
 
 You can create a clone of the repo with
 
@@ -12,3 +11,10 @@ You can then push & pull commits to this local repository (it is set as a remote
 currently it is all stuffed into one file `ddgrader.py`. This makes it easy to symlink to and run in
 other directories, but also pretty ugly. Potentially a big refactoring would greatly enhance readability.
 
+
+Branching
+=========
+I'm trying to follow a simplified version of the branching strategy in http://nvie.com/posts/a-successful-git-branching-model/.
+Basically there will be a `develop` and `master` branch. New features will be developed in their own
+branch "`feat-`", etc. and based off of the `develop` branch. `master` will have the "official releases" with tagged
+versions.

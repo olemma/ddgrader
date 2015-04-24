@@ -34,6 +34,12 @@ group members. This requires the `mine` command to have been previously successf
 see `report ranking --help` for additional parameters. It is possible to set a different threshold for
 reporting (--thresh) as well as include all member rankings for poorly ranked students (--all)
 
+###`report slip`
+`report slip` will generate a report showing students who have reported non-zero slip days on their design document.
+It defaults to 0 if they the slip day line.
+
+`--all` will optionally show all slip day reports, including 0
+
 `setup`
 -----
 The `setup` command is responsible for taking the information from `mine` and the students' implementations
