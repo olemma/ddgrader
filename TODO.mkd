@@ -1,0 +1,20 @@
+A list of possible/planned features and bugs, __LOW__, __MED__, __HIGH__ for some prioritization.
+
+Bugs
+====
+
+
+Features
+========
+* __LOW__ debugging tools for reading dds.pkl
+* __HIGH__ open arbitrary partner-relative files in grader
+* __MED__ more sane way of tracking which students graded (maybe an extra file in the directory)
+* __LOW__ use a real (sqlite) DB instead of pickled files
+* __MED__ better automatic scoring/track scores
+* __LOW__ built-in rescoring
+
+Restructuring
+=============
+* __MED__ Factor project_prepare into ddgrader.py
+* __HIGH__ Replace print() with logging, and setup logging format (which command am i in, etc.)
+* __LOW__ Refactor into separate files/ezsetup?
