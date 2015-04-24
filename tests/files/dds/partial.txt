@@ -19,8 +19,6 @@ Unique Number: 1
 Ranking (scale below): Excellent
 
 
-Slip days used on this project: 2
-
 ---- GROUP ----
 
 >> Fill the names, UT EIDs, CS logins, email addresses, and unique numbers

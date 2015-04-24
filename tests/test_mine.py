@@ -83,6 +83,13 @@ def test_student_eq():
     assert s3 != s4
 
 
+def test_slip_days():
+    """Test slip day regex"""
+    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string1), (0, True))
+    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string2), (0, False))
+    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string3), (3, True))
+
+
 def test_student_update_other():
     s1 = ddgrader.Student('alex', None, 'awknaust', None, 5)
     s2 = ddgrader.Student('alex', 'awk5', None, 'awknaust@gmail.com', 5)
@@ -104,6 +111,7 @@ def test_student_update_other():
 
     s1.update_other(s2)
     eq_(s1, s3)
+
 
 
 def test_student_matches():
@@ -175,6 +183,23 @@ def test_design_doc_read():
         assert ddgrader.read_design_doc(path) is not None
 
 
+def check_slip_day(name, slip):
+    path = os.path.join('files', 'dds', name)
+    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    eq_(dd.slip, slip)
+
+def test_slip_parsing():
+    """Test slip day parsing on entire document"""
+    name_slip_pairs = [
+        ('cref1.txt', 1),
+        ('cref2.txt', 0),
+        ('project1_0.txt', 2),
+        ('partial.txt', 0),
+        ('space_first.txt', 2)
+    ]
+    for name, slip in name_slip_pairs:
+        yield check_slip_day, name, slip
+
 def test_double_student_dd():
     path = os.path.join('files', 'dds', 'double_self.txt')
     dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
@@ -222,11 +247,6 @@ def test_project0_2():
     eq_(dd.group[0].email, 'the_boss@utexas.edu')
     eq_(dd.group[0].ranking, 'excellent')
 
-
-def test_slip_days():
-    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string1), (0, True))
-    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string2), (0, False))
-    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string3), (3, True))
 
 
 def test_cross_reference():
