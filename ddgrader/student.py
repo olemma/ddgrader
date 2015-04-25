@@ -30,8 +30,8 @@ class Student:
     def getDirectoryName(self):
         return self.eid
 
-    @staticmethod
-    def from_text(text, pos=0, endpos=None):
+    @classmethod
+    def from_text(cls, text, pos=0, endpos=None):
         """Find the first student in a chunk of text"""
 
         if endpos is None:
@@ -43,15 +43,15 @@ class Student:
             return False
 
         def get_attribute(attr_name):
-            rex = getattr(Student, '%s_regex' % attr_name)
+            rex = getattr(cls, '%s_regex' % attr_name)
             match = rex.search(text, pos, endpos)
             if match and match.group(attr_name):
                 return match.group(attr_name).strip().lower()
             else:
-                logging.debug("Student Missing Attribute %s" % attr_name)
+                logging.debug("cls Missing Attribute %s" % attr_name)
                 return None
 
-        if empty_student(Student.name_regex.search(text, pos, endpos)):
+        if empty_student(cls.name_regex.search(text, pos, endpos)):
             return None
 
         name = get_attribute('name')
@@ -61,11 +61,11 @@ class Student:
         num = get_attribute('num')
         ranking = get_attribute('ranking')
 
-        return Student(name, eid, cslogin, email, num, ranking)
+        return cls(name, eid, cslogin, email, num, ranking)
 
 
-    @staticmethod
-    def all_from_text(text, path):
+    @classmethod
+    def all_from_text(cls, text, path):
         """Get a list of students from a design document
         :param path:
         """
@@ -73,16 +73,16 @@ class Student:
 
 
         # get all matches for student blocks that at least have a name
-        matches = [m for m in Student.name_regex.finditer(text)]
+        matches = [m for m in cls.name_regex.finditer(text)]
 
         for i, m in enumerate(matches):
             endpos = matches[i + 1].start() if i < len(matches) - 1 else None
-            s = Student.from_text(text, m.start(), endpos)
+            s = cls.from_text(text, m.start(), endpos)
 
             if s is not None:
                 students.append(s)
             elif s is not None and s.eid is None:
-                logging.warning("'%s': Student '%s' without eid" % (path, s.name))
+                logging.warning("'%s': cls '%s' without eid" % (path, s.name))
                 students.append(s)
             elif s is None:
                 logging.info("Skipping empty student")
