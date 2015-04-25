@@ -1,10 +1,9 @@
-import os
-
 from nose.tools import *
 
 from ddgrader.designdocument import DesignDocument
-from ddgrader.commands.mine import read_design_doc, clean_empty_students, cross_reference
+from ddgrader.commands.mine import clean_empty_students, cross_reference
 from ddgrader.student import Student
+from tests.util import get_dd
 
 
 student_ex1 = """Name1: Wellow Yu
@@ -180,16 +179,11 @@ def test_regex_multistudent():
     check_student_three_two(students[1])
 
 
-def test_design_doc_read():
-    txt = None
-    for x in os.listdir(os.path.join('files', 'dds')):
-        path = os.path.join('files', 'dds', x)
-        assert read_design_doc(path) is not None
+
 
 
 def check_slip_day(name, slip):
-    path = os.path.join('files', 'dds', name)
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd(name)
     eq_(dd.slip, slip)
 
 def test_slip_parsing():
@@ -205,23 +199,20 @@ def test_slip_parsing():
         yield check_slip_day, name, slip
 
 def test_double_student_dd():
-    path = os.path.join('files', 'dds', 'double_self.txt')
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd('double_self.txt')
     assert dd is not None
     eq_(len(dd.group), 1)
     eq_(dd.group[0].cslogin, 'frobo')
 
 
 def test_space_first_dd():
-    path = os.path.join('files', 'dds', 'space_first.txt')
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd('space_first.txt')
     assert dd is not None
     eq_(len(dd.group), 3)
 
 
 def test_project0_1():
-    path = os.path.join('files', 'dds', 'project0_1.txt')
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd('project0_1.txt')
     assert dd is not None
     eq_(dd.student.cslogin, 'srio')
     assert dd.student.ranking is None
@@ -233,16 +224,14 @@ def test_project0_1():
 
 def test_project1_0():
     """Skip blank students"""
-    path = os.path.join('files', 'dds', 'project1_0.txt')
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd('project1_0.txt')
     assert dd is not None
     eq_(len(dd.group), 3)
     assert dd.student.ranking is None
 
 
 def test_project0_2():
-    path = os.path.join('files', 'dds', 'project0_2.txt')
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd('project0_2.txt')
     assert dd is not None
     eq_(dd.student.cslogin, 'ckent')
     assert dd.student.ranking is None
@@ -254,11 +243,9 @@ def test_project0_2():
 
 
 def test_cross_reference():
-    path = os.path.join('files', 'dds', 'double_self.txt')
-    dd1 = DesignDocument.from_design_doc(path, read_design_doc(path))
 
-    path2 = os.path.join('files', 'dds', 'partial.txt')
-    dd2 = DesignDocument.from_design_doc(path, read_design_doc(path2))
+    dd1 = get_dd('double_self.txt')
+    dd2 = get_dd('partial.txt')
 
     dds = [dd1, dd2]
     cross_reference(dds)
@@ -268,11 +255,8 @@ def test_cross_reference():
 
 
 def test_cross_reference_again():
-    path = os.path.join('files', 'dds', 'cref1.txt')
-    dd1 = DesignDocument.from_design_doc(path, read_design_doc(path))
-
-    path2 = os.path.join('files', 'dds', 'cref2.txt')
-    dd2 = DesignDocument.from_design_doc(path, read_design_doc(path2))
+    dd1 = get_dd('cref1.txt')
+    dd2 = get_dd('cref2.txt')
 
     dds = [dd1, dd2]
     cross_reference(dds)
@@ -282,8 +266,7 @@ def test_cross_reference_again():
 
 
 def test_clean_empty_students():
-    path = os.path.join('files', 'dds', 'project1_0.txt')
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
+    dd = get_dd('project1_0.txt')
     assert dd is not None
     eq_(len(dd.group), 3)
     clean_empty_students([dd, ])

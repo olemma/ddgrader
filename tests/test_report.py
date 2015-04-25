@@ -1,18 +1,9 @@
-import os
-
 from nose.tools import *
 
 from ddgrader.commands.reportranking import ReportRankingCommand
 from ddgrader.commands.reportslip import ReportSlipCommand
-from ddgrader.designdocument import DesignDocument
-from ddgrader.commands.mine import read_design_doc
+from tests.util import get_dd
 
-
-def get_dd(name):
-    path = os.path.join('files', 'dds', name)
-    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
-    ok_(dd is not None)
-    return dd
 
 def test_ranking_generate_report_one():
     """Report poorly ranked students in one design document"""
