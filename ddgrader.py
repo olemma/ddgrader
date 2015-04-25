@@ -763,6 +763,7 @@ class ReportCommand(Command):
     def add_parser(self, subparser):
         parser = subparser.add_parser(self.cmd, help='generates a report ')
         report_subparsers = parser.add_subparsers(dest='report_subparser_name', help='report types')
+        report_subparsers.required = True
 
         for sc in self.subcmds:
             sc.add_parser(report_subparsers)
@@ -848,6 +849,8 @@ def build_parsers(cmds):
                              default=Configger.get_default('dds_pickle_name'))
     subparsers = root_parser.add_subparsers(dest='subparser_name',
                                             help="These commands perform different actions on a collection of design documents and student code")
+
+    subparsers.required = True
 
     for cmd in cmds:
         cmd.add_parser(subparsers)
