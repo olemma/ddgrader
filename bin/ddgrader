@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import argparse
 import logging
-
+import ddgrader
 
 from ddgrader.commands.collect import CollectCommand
 from ddgrader.commands.grade import GradeCommand
@@ -15,7 +15,7 @@ from ddgrader.configger import Configger
 
 def build_parsers(cmds):
     """Builds the argument parser from the cmds objects"""
-    root_parser = argparse.ArgumentParser()
+    root_parser = argparse.ArgumentParser(prog="DDGrader")
     root_parser.add_argument('-l', '--logfile', help="Path of file to log to, default to stdout")
     root_parser.add_argument('-L', '--loglevel', help="Logging level",
                              choices=['info', 'warning', 'error', 'critical', 'debug'])
@@ -23,6 +23,8 @@ def build_parsers(cmds):
                              default='ddgrader.cfg')
     root_parser.add_argument('--dds', help="Path to pickled design document collection",
                              default=Configger.get_default('dds_pickle_name'))
+
+    root_parser.add_argument('--version', action='version', version='%(prog)s ' +  '%s' % str(ddgrader.__version__))
     subparsers = root_parser.add_subparsers(dest='subparser_name',
                                             help="These commands perform different actions on a collection of design documents and student code")
 
@@ -46,7 +48,6 @@ def setup_logger(loglevel, logfile=''):
 
 # entry point
 def begin():
-    global cmds, parser, parsed, cfg, c
     cmds = [MineCommand(), SetupCommand(), CollectCommand(), GradeCommand(),
             ReportCommand()]
     parser = build_parsers(cmds)

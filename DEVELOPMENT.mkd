@@ -10,7 +10,11 @@ You can then push & pull commits to this local repository (it is set as a remote
 
 To actually run a development version use the develop option of setuptools (you will see updates immediately)
 
-`python3 setup.py develop`
+`python3 setup.py develop --user`
+
+or with pip
+
+`pip install -e . --user`
 
 
 Branching
