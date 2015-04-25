@@ -45,7 +45,7 @@ def setup_logger(loglevel, logfile=''):
         logging.basicConfig(level=numeric_level, filename=logfile)
 
 # entry point
-def main():
+def begin():
     global cmds, parser, parsed, cfg, c
     cmds = [MineCommand(), SetupCommand(), CollectCommand(), GradeCommand(),
             ReportCommand()]
@@ -66,8 +66,4 @@ def main():
         if c.cmd == parsed.subparser_name:
             c.do_cmd(parsed)
     logging.shutdown()
-
-
-if __name__ == '__main__':
-    main()
 
