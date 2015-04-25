@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 import argparse
-
-import re, os, shutil, pickle
+import re
+import os
+import shutil
+import pickle
 import subprocess
 import configparser
 import zipfile
 import csv
-
 import logging
 from collections import defaultdict, OrderedDict, namedtuple
 
@@ -31,45 +32,79 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-# singleton class for configuration information. This is weird and stolen from stackoverflow
+# singleton class for configuration information. Weird sort of global configuration object
 class Configger(metaclass=Singleton):
-    config_name = 'ddgrader.cfg'
-
     setup_items = {
-        'report_thresh' : 'marginal',
-        'design_doc_name' : 'design_doc.txt',
-        'student_dir' : 'students',
-        'feedback_name' : 'feedback.txt',
-        'feedback_template' : 'template.txt',
-        'code_name' : 'code',
-        'dds_pickle_name' : '.dds.pkl',
-        'partner_pattern' : 'group%d_doc.txt',
+        'report_thresh': 'marginal',
+        'design_doc_name': 'design_doc.txt',
+        'student_dir': 'students',
+        'feedback_name': 'feedback.txt',
+        'feedback_template': 'template.txt',
+        'code_name': 'code',
+        'dds_pickle_name': '.dds.pkl',
+        'partner_pattern': 'group%d_doc.txt',
+        'loglevel': 'warning',
+        'logfile': ''
     }
 
     grade_items = {
-        'editor' : 'vim',
-        'editor_args' : '-p',
-        'editor_rel_files' : '',
-        'grader_pickle-name' : '.grader.pkl',
-        'grade_regex' : '',
-        'grade_column' : -1
+        'editor': 'vim',
+        'editor_args': '-p',
+        'editor_rel_files': '',
+        'grader_pickle_name': '.grader.pkl',
+        'grade_regex': '',
+        'grade_column': -1
     }
 
-    sections =  {'grade' : grade_items, 'setup' : setup_items}
+    sections = {'grade': grade_items, 'setup': setup_items}
 
     def __init__(self, fname=None):
-        if fname is None:
-            fname = Configger.config_name
+        self.fname = fname
+
         self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-        if (os.path.exists(fname)):
+
+        # necessary if we want to set any values
+        for section_name in self.sections:
+            self.config.add_section(section_name)
+
+        if fname:
+            self.reload(self.fname)
+
+
+    def reload(self, fname=None):
+        """Reload the config from file (overwrites any in-memory changes to config)"""
+        self.fname = fname
+        if os.path.exists(fname):
             self.config.read(fname)
+        else:
+            logging.error("Failed to read config file : using defaults")
+
+    @classmethod
+    def _lookup_sect_dict(cls, name):
+        """Return the section name, default dict that name is in"""
+        for section_name, keydefdict in cls.sections.items():
+            if name in keydefdict:
+                return section_name, keydefdict
+        raise KeyError
+
+    @classmethod
+    def get_default(cls, name):
+        """Get the default value for a name, mainly for argparsers"""
+        section_name, defdict = cls._lookup_sect_dict(name)
+        return defdict[name]
 
 
     def __getattr__(self, attr_name):
-        for section_name, keydefdict in self.sections.items():
-            if attr_name in keydefdict:
-                return self.config.get(section_name, attr_name, fallback=keydefdict[attr_name])
-        raise AttributeError
+        section_name, defdict = self._lookup_sect_dict(attr_name)
+        return self.config.get(section_name, attr_name, fallback=defdict[attr_name])
+
+
+    def __setattr__(self, name, value):
+        try:
+            section_name, defdict = self._lookup_sect_dict(name)
+            self.config.set(section_name, name, value)
+        except KeyError:
+            super().__setattr__(name, value)
 
 
 class DesignDocParseError(Exception):
@@ -251,7 +286,7 @@ class DesignDocument:
 
         group = []
 
-        #this is pretty hacky
+        # this is pretty hacky
         processed = doc_string.replace('\r\n', '\n')
         processed = processed.replace('\r', '')
         assert not '\r' in processed
@@ -319,7 +354,7 @@ def link_group(root, dest, dd):
     for i, member in enumerate(dd.group):
         if member.eid < dd.student.eid:
             target = os.path.join(dest, Configger().partner_pattern % (i))
-            if os.path.lexists(target) or os.path.exists(target):  #remove broken links
+            if os.path.lexists(target) or os.path.exists(target):  # remove broken links
                 os.unlink(target)
             os.symlink(os.path.abspath(os.path.join(root,
                                                     member.getDirectoryName(), Configger().feedback_name)), target)
@@ -353,7 +388,7 @@ def setup_grading(dest, design_docs, impl_dir, template):
     """Symlink each groups code into each students design document directory"""
     for doc in design_docs:
         student_folder = os.path.join(dest, doc.student.getDirectoryName())
-        #link to group's code
+        # link to group's code
         link_code(student_folder,
                   [doc.student.eid],
                   impl_dir
@@ -388,9 +423,6 @@ def load_dds():
 
     with open(Configger().dds_pickle_name, 'rb') as f:
         return pickle.load(f)
-
-
-
 
 
 def cross_reference(docs):
@@ -561,7 +593,7 @@ class Grader:
             os.path.join(path, Configger().design_doc_name),
         ]
 
-        #hacky way to any symlinks to partners' design docs
+        # hacky way to any symlinks to partners' design docs
         for i, f in enumerate(os.listdir(path)):
             group_dd = os.path.join(path, Configger().partner_pattern % i)
             if os.path.exists(group_dd):
@@ -604,6 +636,8 @@ class GradeCommand(Command):
 
     def do_cmd(self, parsed):
         direc = Configger().student_dir
+        if parsed.gradedb:
+            Configger().grader_pickle_name = parsed.gradedb
         g = Grader(direc)
 
         if parsed.student is not None:
@@ -615,6 +649,7 @@ class GradeCommand(Command):
     def add_parser(self, subparser):
         parser = subparser.add_parser(self.cmd, help='opens all files for grading design documents in a loop')
         parser.add_argument('-s', '--student', help='eid of a specific student to grade')
+        parser.add_argument('--gradedb', help='path to pickled database of grader information')
 
 
 class ReportSlipCommand(Command):
@@ -643,6 +678,7 @@ class ReportSlipCommand(Command):
     def add_parser(self, subparser):
         parser = subparser.add_parser(self.cmd, help='report student-reported non-zero slip days for design documents')
         parser.add_argument('--all', action='store_true', help="Also report zero slip days")
+
 
 class ReportRankingCommand(Command):
     cmd = 'ranking'
@@ -689,13 +725,13 @@ class ReportRankingCommand(Command):
         for eid in report:
             print("%s ranked poorly by %d student(s):" % (report[eid].student.short(), len(report[eid].bad_rankers)))
 
-            for s,rank in report[eid].bad_rankers:
+            for s, rank in report[eid].bad_rankers:
                 print("\t%s\t==> %s" % (s.short(), rank.title()))
 
             if report[eid].pos_rankers:
                 print("Other group members:")
 
-                for s,rank in report[eid].pos_rankers:
+                for s, rank in report[eid].pos_rankers:
                     print("\t%s\t==> %s" % (s.short(), rank.title()))
 
             print()
@@ -730,6 +766,7 @@ class ReportCommand(Command):
 
         for sc in self.subcmds:
             sc.add_parser(report_subparsers)
+
 
 class CollectCommand(Command):
     cmd = 'collect'
@@ -803,17 +840,30 @@ def build_parsers(cmds):
     """Builds the argument parser from the cmds objects"""
     root_parser = argparse.ArgumentParser()
     root_parser.add_argument('-l', '--logfile', help="Path of file to log to, default to stdout")
-    root_parser.add_argument('-L', '--loglevel', help="Logging level", default='warning',
+    root_parser.add_argument('-L', '--loglevel', help="Logging level",
                              choices=['info', 'warning', 'error', 'critical', 'debug'])
     root_parser.add_argument('-c', '--config', help="config file to use, defaults to <ddgrader.cfg>",
                              default='ddgrader.cfg')
-    subparsers = root_parser.add_subparsers(dest='subparser_name', help="commands")
+    root_parser.add_argument('--dds', help="Path to pickled design document collection",
+                             default=Configger.get_default('dds_pickle_name'))
+    subparsers = root_parser.add_subparsers(dest='subparser_name',
+                                            help="These commands perform different actions on a collection of design documents and student code")
 
     for cmd in cmds:
         cmd.add_parser(subparsers)
 
     return root_parser
 
+
+def setup_logger(loglevel, logfile=''):
+    """Setup the logger"""
+
+    # setup logging
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not logfile:
+        logging.basicConfig(level=numeric_level)
+    else:
+        logging.basicConfig(level=numeric_level, filename=logfile)
 
 # entry point
 if __name__ == '__main__':
@@ -823,14 +873,18 @@ if __name__ == '__main__':
     parser = build_parsers(cmds)
     parsed = parser.parse_args()
 
-    # setup logging
-    numeric_level = getattr(logging, parsed.loglevel.upper(), None)
-    if parsed.logfile is not None:
-        logging.basicConfig(level=numeric_level)
-    else:
-        logging.basicConfig(level=numeric_level, filename=parsed.logfile)
+    # the first call to Configger
+    cfg = Configger(parsed.config)
 
-    Configger.config_name = parsed.config
+    # override some command line values
+    if parsed.dds:
+        cfg.dds_pickle_name = parsed.dds
+    if parsed.loglevel:
+        cfg.loglevel = parsed.loglevel
+    if parsed.logfile:
+        cfg.logfile = parsed.logfile
+
+    setup_logger(cfg.loglevel, cfg.logfile)
 
     # delegate work to subcommand
     for c in cmds:
