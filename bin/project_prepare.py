@@ -27,13 +27,12 @@ Changed to use ddgrader parser instead + python3
 '''
 
 import os
-from multiprocessing import Pool
 import subprocess
-import sys, traceback
-import re
-
+import sys
 import argparse
-import ddgrader
+
+from ddgrader.designdocument import DesignDocument
+from ddgrader.commands.mine import read_design_doc
 
 
 def makePrepare(tarball, readme_paths):
@@ -68,12 +67,12 @@ def makePrepare(tarball, readme_paths):
         return None
 
     # Get the students from the README
-    readme_txt = ddgrader.read_design_doc(real_readme)
+    readme_txt = read_design_doc(real_readme)
     if not readme_txt:
         print("Failed to read README?")
         return None
 
-    dd = ddgrader.DesignDocument.from_design_doc(real_readme, readme_txt)
+    dd = DesignDocument.from_design_doc(real_readme, readme_txt)
 
     eids = sorted([s.eid for s in dd.all_students() if s.eid])
 

@@ -1,11 +1,13 @@
 from nose.tools import *
-from .. import ddgrader
+
+from ddgrader.configger import Configger
 
 
 def test_config_set():
-    c = ddgrader.Configger()
+    c = Configger()
     rt = c.report_thresh
     c.report_thresh = rt * 2
 
     eq_(c.report_thresh, rt * 2)
+
 

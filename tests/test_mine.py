@@ -1,6 +1,10 @@
-from nose.tools import *
-from .. import ddgrader
 import os
+
+from nose.tools import *
+
+from ddgrader.designdocument import DesignDocument
+from ddgrader.commands.mine import read_design_doc, clean_empty_students, cross_reference
+from ddgrader.student import Student
 
 
 student_ex1 = """Name1: Wellow Yu
@@ -71,10 +75,10 @@ Slip days used:  3
 
 
 def test_student_eq():
-    s1 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
-    s2 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 2)
-    s3 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
-    s4 = ddgrader.Student('alex', 'awk8', 'awknaust', 'awknaust@gmail.com', 5)
+    s1 = Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
+    s2 = Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 2)
+    s3 = Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
+    s4 = Student('alex', 'awk8', 'awknaust', 'awknaust@gmail.com', 5)
 
     assert s1 == s1
     assert s1 == s3
@@ -85,23 +89,23 @@ def test_student_eq():
 
 def test_slip_days():
     """Test slip day regex"""
-    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string1), (0, True))
-    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string2), (0, False))
-    eq_(ddgrader.DesignDocument.find_slip_days('fake', slip_string3), (3, True))
+    eq_(DesignDocument.find_slip_days('fake', slip_string1), (0, True))
+    eq_(DesignDocument.find_slip_days('fake', slip_string2), (0, False))
+    eq_(DesignDocument.find_slip_days('fake', slip_string3), (3, True))
 
 
 def test_student_update_other():
-    s1 = ddgrader.Student('alex', None, 'awknaust', None, 5)
-    s2 = ddgrader.Student('alex', 'awk5', None, 'awknaust@gmail.com', 5)
-    s3 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
+    s1 = Student('alex', None, 'awknaust', None, 5)
+    s2 = Student('alex', 'awk5', None, 'awknaust@gmail.com', 5)
+    s3 = Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 5)
 
-    s4 = ddgrader.Student('None', None, None, None, None)
-    s5 = ddgrader.Student('None', None, None, None, None)
+    s4 = Student('None', None, None, None, None)
+    s5 = Student('None', None, None, None, None)
 
     # test if overwrites info if they are notnone and different
-    s6 = ddgrader.Student('alex', 'eid19', None, None, None)
-    s7 = ddgrader.Student('alex', 'eid19', None, None, None)
-    s8 = ddgrader.Student('alex', 'hello', None, None, None)
+    s6 = Student('alex', 'eid19', None, None, None)
+    s7 = Student('alex', 'eid19', None, None, None)
+    s8 = Student('alex', 'hello', None, None, None)
 
     s7.update_other(s8)
     eq_(s7, s6)
@@ -115,9 +119,9 @@ def test_student_update_other():
 
 
 def test_student_matches():
-    s1 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 7)
-    s2 = ddgrader.Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 3)
-    s3 = ddgrader.Student('jemma', 'jt7', 'jteller', 'jteller@gmail.com', 9)
+    s1 = Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 7)
+    s2 = Student('alex', 'awk5', 'awknaust', 'awknaust@gmail.com', 3)
+    s3 = Student('jemma', 'jt7', 'jteller', 'jteller@gmail.com', 9)
     assert s1.matches(s2)
     assert s2.matches(s1)
     assert s1.matches(s1)
@@ -126,7 +130,7 @@ def test_student_matches():
 
 
 def test_student_one():
-    s = ddgrader.Student.from_text(student_ex1)
+    s = Student.from_text(student_ex1)
     eq_(s.name, 'wellow yu')
     eq_(s.eid, 'wy51326')
     eq_(s.cslogin, 'pajamaa')
@@ -136,7 +140,7 @@ def test_student_one():
 
 
 def test_student_two():
-    s = ddgrader.Student.from_text(student_ex2)
+    s = Student.from_text(student_ex2)
     eq_(s.name, 'alex knaust')
     eq_(s.eid, 'awk333')
     eq_(s.cslogin, 'awknaust')
@@ -146,7 +150,7 @@ def test_student_two():
 
 
 def test_student_empty_fields():
-    s = ddgrader.Student.from_text(student_ex4)
+    s = Student.from_text(student_ex4)
     eq_(s.name, 'alex knaust')
     eq_(s.ranking, None)
 
@@ -169,7 +173,7 @@ def check_student_three_two(s):
 
 
 def test_regex_multistudent():
-    students = ddgrader.Student.all_from_text(student_ex3, 'test')
+    students = Student.all_from_text(student_ex3, 'test')
 
     eq_(len(students), 2)
     check_student_three_one(students[0])
@@ -180,12 +184,12 @@ def test_design_doc_read():
     txt = None
     for x in os.listdir(os.path.join('files', 'dds')):
         path = os.path.join('files', 'dds', x)
-        assert ddgrader.read_design_doc(path) is not None
+        assert read_design_doc(path) is not None
 
 
 def check_slip_day(name, slip):
     path = os.path.join('files', 'dds', name)
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     eq_(dd.slip, slip)
 
 def test_slip_parsing():
@@ -202,7 +206,7 @@ def test_slip_parsing():
 
 def test_double_student_dd():
     path = os.path.join('files', 'dds', 'double_self.txt')
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     assert dd is not None
     eq_(len(dd.group), 1)
     eq_(dd.group[0].cslogin, 'frobo')
@@ -210,14 +214,14 @@ def test_double_student_dd():
 
 def test_space_first_dd():
     path = os.path.join('files', 'dds', 'space_first.txt')
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     assert dd is not None
     eq_(len(dd.group), 3)
 
 
 def test_project0_1():
     path = os.path.join('files', 'dds', 'project0_1.txt')
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     assert dd is not None
     eq_(dd.student.cslogin, 'srio')
     assert dd.student.ranking is None
@@ -230,7 +234,7 @@ def test_project0_1():
 def test_project1_0():
     """Skip blank students"""
     path = os.path.join('files', 'dds', 'project1_0.txt')
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     assert dd is not None
     eq_(len(dd.group), 3)
     assert dd.student.ranking is None
@@ -238,7 +242,7 @@ def test_project1_0():
 
 def test_project0_2():
     path = os.path.join('files', 'dds', 'project0_2.txt')
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     assert dd is not None
     eq_(dd.student.cslogin, 'ckent')
     assert dd.student.ranking is None
@@ -251,13 +255,13 @@ def test_project0_2():
 
 def test_cross_reference():
     path = os.path.join('files', 'dds', 'double_self.txt')
-    dd1 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd1 = DesignDocument.from_design_doc(path, read_design_doc(path))
 
     path2 = os.path.join('files', 'dds', 'partial.txt')
-    dd2 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path2))
+    dd2 = DesignDocument.from_design_doc(path, read_design_doc(path2))
 
     dds = [dd1, dd2]
-    ddgrader.cross_reference(dds)
+    cross_reference(dds)
     eq_(dd2.group[0].eid, dd1.student.eid)
     eq_(len(dd2.group), 1)
     eq_(len(dd1.group), 1)
@@ -265,13 +269,13 @@ def test_cross_reference():
 
 def test_cross_reference_again():
     path = os.path.join('files', 'dds', 'cref1.txt')
-    dd1 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd1 = DesignDocument.from_design_doc(path, read_design_doc(path))
 
     path2 = os.path.join('files', 'dds', 'cref2.txt')
-    dd2 = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path2))
+    dd2 = DesignDocument.from_design_doc(path, read_design_doc(path2))
 
     dds = [dd1, dd2]
-    ddgrader.cross_reference(dds)
+    cross_reference(dds)
 
     eq_(len(dd2.group), 3)
     eq_(dd2.group[0].eid, dd1.student.eid)
@@ -279,10 +283,10 @@ def test_cross_reference_again():
 
 def test_clean_empty_students():
     path = os.path.join('files', 'dds', 'project1_0.txt')
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
+    dd = DesignDocument.from_design_doc(path, read_design_doc(path))
     assert dd is not None
     eq_(len(dd.group), 3)
-    ddgrader.clean_empty_students([dd, ])
+    clean_empty_students([dd, ])
     eq_(len(dd.group), 2)
 
     for s in dd.group:
