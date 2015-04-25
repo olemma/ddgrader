@@ -13,8 +13,10 @@ Features
 * __MED__ better automatic scoring/track scores
 * __LOW__ built-in rescoring
 
+
 Restructuring
 =============
 * __MED__ Factor project_prepare into ddgrader.py
 * __HIGH__ Replace print() with logging, and setup logging format (which command am i in, etc.)
-* __LOW__ Refactor into separate files/ezsetup?
+* __HIGH__ Versioning schema
+* __LOW__ autogenerate default configuration file (with help)

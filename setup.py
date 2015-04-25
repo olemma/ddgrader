@@ -2,15 +2,11 @@ from setuptools import setup
 
 setup(
     name="DDGrader",
-    version=2.0,
+    version=1.4,
     packages=['ddgrader',],
-    scripts=['bin/project_prepare'],
+    scripts=['bin/project_prepare', 'bin/ddgrader'],
     author="Alex Knaust",
     author_email="awknaust@gmail.com",
 
-    entry_points={
-        'console_scripts' : [
-            'ddgrader = ddgrader.main:begin'
-        ]
-    }
+
 )

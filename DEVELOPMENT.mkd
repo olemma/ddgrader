@@ -8,8 +8,9 @@ You can create a clone of the repo with
 
 You can then push & pull commits to this local repository (it is set as a remote origin). No idea how these are managed in terms of permissions
 
-currently it is all stuffed into one file `ddgrader.py`. This makes it easy to symlink to and run in
-other directories, but also pretty ugly. Potentially a big refactoring would greatly enhance readability.
+To actually run a development version use the develop option of setuptools (you will see updates immediately)
+
+`python3 setup.py develop`
 
 
 Branching
@@ -18,3 +19,10 @@ I'm trying to follow a simplified version of the branching strategy in ['A succe
 Basically there will be a `develop` and `master` branch. New features will be developed in their own
 branch "`feat-`", etc. and based off of the `develop` branch. `master` will have the "official releases" with tagged
 versions.
+
+
+Testing
+=======
+Testing with nosetests-3.4 in root directory.
+
+Any student information should be faked/removed before adding to the git repo.

@@ -67,3 +67,5 @@ def begin():
             c.do_cmd(parsed)
     logging.shutdown()
 
+if __name__ == '__main__':
+    begin()
