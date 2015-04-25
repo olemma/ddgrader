@@ -1,6 +1,6 @@
 import os
 from nose.tools import ok_
-from ddgrader.commands.mine import read_design_doc
+from ddgrader.commands.mine import MineCommand
 from ddgrader.designdocument import DesignDocument
 
 __author__ = 'awknaust'
@@ -15,7 +15,7 @@ def dd_path(name):
 
 def read_dd(name):
     """read a design document by name"""
-    return read_design_doc(dd_path(name))
+    return MineCommand.read_design_doc(dd_path(name))
 
 def get_dd(name):
     """Read and parse a design document by name"""

@@ -34,11 +34,11 @@ class DesignDocument:
     def all_students(self):
         return [self.student, ] + self.group
 
-    @staticmethod
-    def find_slip_days(path, doc_string):
+    @classmethod
+    def find_slip_days(cls, path, doc_string):
         """Find the reported number of slip days used, as well as whether it was really found
         """
-        slip_match = DesignDocument.slip_regex.search(doc_string)
+        slip_match = cls.slip_regex.search(doc_string)
 
         # check slip validity
         if slip_match and slip_match.group('slip'):
@@ -49,8 +49,8 @@ class DesignDocument:
 
 
     # TODO option skip rankings if we are just parsing readmes
-    @staticmethod
-    def from_design_doc(path, doc_string):
+    @classmethod
+    def from_design_doc(cls, path, doc_string):
         """Create a design document from the contents of a file given by doc_string"""
 
         group = []
@@ -72,7 +72,7 @@ class DesignDocument:
             if not duplicate:
                 group.append(s)
 
-        slip, found = DesignDocument.find_slip_days(path, processed)
+        slip, found = cls.find_slip_days(path, processed)
 
         #check group size
         if len(group) == 0:
@@ -82,7 +82,7 @@ class DesignDocument:
         elif len(group) < 2:
             # this usually indicates an error in parsing
             logging.error("'%s': Singleton group" % path)
-            return DesignDocument(os.path.abspath(path), group[0], [], slip)
+            return cls(os.path.abspath(path), group[0], [], slip)
 
         elif len(group) >= 2:
             #check rankings
@@ -90,7 +90,7 @@ class DesignDocument:
                 if not s.hasRanking() or s.ranking not in rank_order:
                     logging.warning("'%s': Bad/Missing Ranking (eid:%s, ranking:'%s')" % (path, s.eid, s.ranking))
 
-            return DesignDocument(os.path.abspath(path), group[0], group[1:], slip)
+            return cls(os.path.abspath(path), group[0], group[1:], slip)
 
         return None
 

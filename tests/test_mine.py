@@ -1,7 +1,7 @@
 from nose.tools import *
 
 from ddgrader.designdocument import DesignDocument
-from ddgrader.commands.mine import clean_empty_students, cross_reference
+from ddgrader.commands.mine import MineCommand
 from ddgrader.student import Student
 from tests.util import get_dd
 
@@ -248,7 +248,7 @@ def test_cross_reference():
     dd2 = get_dd('partial.txt')
 
     dds = [dd1, dd2]
-    cross_reference(dds)
+    MineCommand.cross_reference(dds)
     eq_(dd2.group[0].eid, dd1.student.eid)
     eq_(len(dd2.group), 1)
     eq_(len(dd1.group), 1)
@@ -259,7 +259,7 @@ def test_cross_reference_again():
     dd2 = get_dd('cref2.txt')
 
     dds = [dd1, dd2]
-    cross_reference(dds)
+    MineCommand.cross_reference(dds)
 
     eq_(len(dd2.group), 3)
     eq_(dd2.group[0].eid, dd1.student.eid)
@@ -269,7 +269,7 @@ def test_clean_empty_students():
     dd = get_dd('project1_0.txt')
     assert dd is not None
     eq_(len(dd.group), 3)
-    clean_empty_students([dd, ])
+    MineCommand.clean_empty_students([dd, ])
     eq_(len(dd.group), 2)
 
     for s in dd.group:
