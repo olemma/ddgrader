@@ -1,18 +1,15 @@
 from nose.tools import *
-from .. import ddgrader
-import os
 
-def get_dd(name):
-    path = os.path.join('files', 'dds', name)
-    dd = ddgrader.DesignDocument.from_design_doc(path, ddgrader.read_design_doc(path))
-    ok_(dd is not None)
-    return dd
+from ddgrader.commands.reportranking import ReportRankingCommand
+from ddgrader.commands.reportslip import ReportSlipCommand
+from tests.util import get_dd
+
 
 def test_ranking_generate_report_one():
     """Report poorly ranked students in one design document"""
 
     dds = [get_dd('bad_rank_one.txt'), ]
-    rrc = ddgrader.ReportRankingCommand()
+    rrc = ReportRankingCommand()
     report = rrc.generate_report(dds, 'marginal', False)
 
     eq_(len(report), 2)
@@ -26,7 +23,7 @@ def test_ranking_generate_report_one():
 def test_ranking_generate_report_thresh():
     """Report poorly ranked students with a non-default threshold"""
     dds = [get_dd('bad_rank_one.txt'), ]
-    rrc = ddgrader.ReportRankingCommand()
+    rrc = ReportRankingCommand()
     report = rrc.generate_report(dds, 'no show', False)
 
     eq_(len(report), 1)
@@ -45,7 +42,7 @@ def has_eid_rank(l, eid, rank):
 def test_ranking_generate_report_multi():
     """Report generation from multiple design documents"""
     dds = list(map(get_dd, ['bad_rank_one.txt', 'bad_rank_two.txt']))
-    rrc = ddgrader.ReportRankingCommand()
+    rrc = ReportRankingCommand()
     report = rrc.generate_report(dds, 'marginal', False)
     eq_(len(report), 3)
     ok_('e35252' in report)
@@ -56,7 +53,7 @@ def test_ranking_generate_report_multi():
 def test_ranking_generate_report_multi_all():
     """Report generation from multiple design documents showing all groupmembers"""
     dds = list(map(get_dd, ['bad_rank_one.txt', 'bad_rank_two.txt']))
-    rrc = ddgrader.ReportRankingCommand()
+    rrc = ReportRankingCommand()
     report = rrc.generate_report(dds, 'marginal', True)
     eq_(len(report), 3)
     ok_('e35252' in report)
@@ -69,7 +66,7 @@ def test_ranking_generate_report_multi_all():
 def test_slip_generate_report_multi():
     """Report generation for slip days across multiple reports"""
     dds = list(map(get_dd, ['cref1.txt', 'cref2.txt']))
-    rsc = ddgrader.ReportSlipCommand()
+    rsc = ReportSlipCommand()
     report = rsc.generate_report(dds, False)
     eq_(len(report), 1)
     eq_(report[0].slip, 1)
@@ -78,7 +75,7 @@ def test_slip_generate_report_multi():
 def test_slip_generate_report_multi_all():
     """Report generation for slip days"""
     dds = list(map(get_dd, ['cref1.txt', 'cref2.txt']))
-    rsc = ddgrader.ReportSlipCommand()
+    rsc = ReportSlipCommand()
     report = rsc.generate_report(dds, True)
     eq_(len(report), 2)
     s1, s2 = report[0].slip, report[1].slip

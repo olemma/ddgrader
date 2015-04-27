@@ -1,0 +1,72 @@
+#!/usr/bin/python3
+import argparse
+import logging
+import ddgrader
+
+from ddgrader.commands.collect import CollectCommand
+from ddgrader.commands.grade import GradeCommand
+from ddgrader.commands.report import ReportCommand
+from ddgrader.commands.setup import SetupCommand
+from ddgrader.commands.mine import MineCommand
+
+from ddgrader.configger import Configger
+
+
+
+def build_parsers(cmds):
+    """Builds the argument parser from the cmds objects"""
+    root_parser = argparse.ArgumentParser(prog="DDGrader")
+    root_parser.add_argument('-l', '--logfile', help="Path of file to log to, default to stdout")
+    root_parser.add_argument('-L', '--loglevel', help="Logging level",
+                             choices=['info', 'warning', 'error', 'critical', 'debug'])
+    root_parser.add_argument('-c', '--config', help="config file to use, defaults to <ddgrader.cfg>",
+                             default='ddgrader.cfg')
+    root_parser.add_argument('--dds', help="Path to pickled design document collection",
+                             default=Configger.get_default('dds_pickle_name'))
+
+    root_parser.add_argument('--version', action='version', version='%(prog)s ' +  '%s' % str(ddgrader.__version__))
+    subparsers = root_parser.add_subparsers(dest='subparser_name',
+                                            help="These commands perform different actions on a collection of design documents and student code")
+
+    subparsers.required = True
+
+    for cmd in cmds:
+        cmd.add_parser(subparsers)
+
+    return root_parser
+
+
+def setup_logger(loglevel, logfile=''):
+    """Setup the logger"""
+
+    # setup logging
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not logfile:
+        logging.basicConfig(level=numeric_level)
+    else:
+        logging.basicConfig(level=numeric_level, filename=logfile)
+
+# entry point
+def begin():
+    cmds = [MineCommand(), SetupCommand(), CollectCommand(), GradeCommand(),
+            ReportCommand()]
+    parser = build_parsers(cmds)
+    parsed = parser.parse_args()
+    # the first call to Configger
+    cfg = Configger(parsed.config)
+    # override some command line values
+    if parsed.dds:
+        cfg.dds_pickle_name = parsed.dds
+    if parsed.loglevel:
+        cfg.loglevel = parsed.loglevel
+    if parsed.logfile:
+        cfg.logfile = parsed.logfile
+    setup_logger(cfg.loglevel, cfg.logfile)
+    # delegate work to subcommand
+    for c in cmds:
+        if c.cmd == parsed.subparser_name:
+            c.do_cmd(parsed)
+    logging.shutdown()
+
+if __name__ == '__main__':
+    begin()
