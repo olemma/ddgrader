@@ -14,32 +14,60 @@ class Singleton(type):
         return cls._instances[cls]
 
 
+"""Config key class"""
+
+
+class CKey:
+    def __init__(self, default, typ):
+        self.default = default
+        self.typ = typ
+
+    def _extract_list(self, val):
+        """Convert a comma separated list into a list of strings"""
+        print("list extraction", val)
+        if val.strip():
+            return list(p.strip() for p in val.split(','))
+        return []
+
+    def _extract_int(self, val):
+        return int(val)
+
+    def extract(self, val):
+        """Extract a value into the appropriate type"""
+
+        if self.typ == 'str':
+            return val
+        elif self.typ == 'int':
+            return self._extract_int(val)
+        elif self.typ == 'list':
+            return self._extract_list(val)
+
 class Configger(metaclass=Singleton):
     # singleton class for configuration information. Weird sort of global configuration object
 
     setup_items = {
-        'report_thresh': 'marginal',
-        'design_doc_name': 'design_doc.txt',
-        'student_dir': 'students',
-        'feedback_name': 'feedback.txt',
-        'feedback_template': 'template.txt',
-        'code_name': 'code',
-        'dds_pickle_name': '.dds.pkl',
-        'partner_pattern': 'group%d_doc.txt',
-        'loglevel': 'warning',
-        'logfile': ''
+        'report_thresh': CKey('marginal', 'str'),
+        'design_doc_name': CKey('design_doc.txt', 'str'),
+        'student_dir': CKey('students', 'str'),
+        'feedback_template': CKey('feedback.txt', 'list'),
+        'code_name': CKey('code', 'str'),
+        'dds_pickle_name': CKey('.dds.pkl', 'str'),
+        'partner_pattern': CKey('group%d_doc.txt', 'str'),
+        'loglevel': CKey('warning', 'str'),
+        'logfile': CKey('', 'str')
     }
 
     grade_items = {
-        'editor': 'vim',
-        'editor_args': '-p',
-        'editor_rel_files': '',
-        'grader_pickle_name': '.grader.pkl',
-        'grade_regex': '',
-        'grade_column': -1
+        'editor': CKey('vim', 'str'),
+        'editor_args': CKey('-p', 'str'),
+        'editor_rel_files': CKey('', 'list'),
+        'editor_abs_files': CKey('', 'list'),
+        'grader_pickle_name': CKey('.grader.pkl', 'str'),
+        'grade_regex': CKey('', 'str'),
+        'grade_column': CKey(-1, 'int')
     }
 
-    sections = {'grade': grade_items, 'setup': setup_items}
+    sections = {'grader': grade_items, 'setup': setup_items}
 
     def __init__(self, fname=None):
         self.fname = fname
@@ -70,16 +98,18 @@ class Configger(metaclass=Singleton):
                 return section_name, keydefdict
         raise KeyError
 
+
     @classmethod
     def get_default(cls, name):
         """Get the default value for a name, mainly for argparsers"""
         section_name, defdict = cls._lookup_sect_dict(name)
-        return defdict[name]
+        return defdict[name].default
 
 
     def __getattr__(self, attr_name):
         section_name, defdict = self._lookup_sect_dict(attr_name)
-        return self.config.get(section_name, attr_name, fallback=defdict[attr_name])
+        ckey = defdict[attr_name]
+        return ckey.extract(self.config.get(section_name, attr_name, fallback=ckey.default))
 
 
     def __setattr__(self, name, value):

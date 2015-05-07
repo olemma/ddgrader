@@ -2,9 +2,11 @@ import csv
 import os
 import re
 import zipfile
+
 from ddgrader.commands.command import Command
 from ddgrader.configger import Configger
 from ddgrader.designdocument import load_dds
+
 
 __author__ = 'awknaust'
 
@@ -41,7 +43,7 @@ class CollectCommand(Command):
         dds = load_dds()
         for dd in dds:
             path = os.path.join(Configger().student_dir, dd.student.getDirectoryName(),
-                                Configger().feedback_name)
+                                Configger().feedback_template[0])
             g = self.fetch_grade(rex, path)
             self.update_grade(rows, dd.student.eid, g, column)
 
@@ -56,7 +58,7 @@ class CollectCommand(Command):
 
         for dd in dds:
             path = os.path.join(Configger().student_dir, dd.student.getDirectoryName(),
-                                Configger().feedback_name)
+                                Configger().feedback_template[0])
             sub_file.write(path, os.path.basename(dd.path))
 
         sub_file.close()

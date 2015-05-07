@@ -58,7 +58,7 @@ class SetupCommand(Command):
     @classmethod
     def copy_template(cls, dest, design_doc, template):
         """Copy the grading template into each student's directory"""
-        target = os.path.join(dest, Configger().feedback_name)
+        target = os.path.join(dest, Configger().feedback_template[0])
         if not os.path.exists(target):
             shutil.copyfile(template, target)
 
@@ -92,7 +92,8 @@ class SetupCommand(Command):
                 if os.path.lexists(target) or os.path.exists(target):  # remove broken links
                     os.unlink(target)
                 os.symlink(os.path.abspath(os.path.join(root,
-                                                        member.getDirectoryName(), Configger().feedback_name)), target)
+                                                        member.getDirectoryName(), Configger().feedback_template[0])),
+                           target)
 
     @classmethod
     def link_code(cls, dest, eids, impl_dir):

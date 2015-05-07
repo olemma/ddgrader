@@ -1,7 +1,10 @@
 import os
+
 from nose.tools import ok_
+
 from ddgrader.commands.mine import MineCommand
 from ddgrader.designdocument import DesignDocument
+
 
 __author__ = 'awknaust'
 
@@ -22,3 +25,8 @@ def get_dd(name):
     dd = DesignDocument.from_design_doc(dd_path(name), read_dd(name))
     ok_(dd is not None)
     return dd
+
+
+def cfg_path(name):
+    """Get the path to the one test config"""
+    return os.path.join('tests', 'files', 'config', name)

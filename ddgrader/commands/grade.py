@@ -80,7 +80,7 @@ class Grader:
         args = [Configger().editor, ]
         args += [x.strip() for x in Configger().editor_args.split(',')]
         args += [
-            os.path.join(path, Configger().feedback_name),
+            os.path.join(path, Configger().feedback_template[0]),
             os.path.join(path, Configger().design_doc_name),
         ]
 
@@ -90,8 +90,8 @@ class Grader:
             if os.path.exists(group_dd):
                 args.append(group_dd)
 
-        args += [os.path.join(path, x.strip()) for x in Configger().editor_rel_files.split(',')]
-        args += [x.strip() for x in Configger().editor_abs_files.split(',')]
+        args += [os.path.join(path, x) for x in Configger().editor_rel_files]
+        args += Configger().editor_abs_files
 
         #do work son
         subprocess.call(args)
