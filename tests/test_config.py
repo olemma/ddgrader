@@ -1,16 +1,14 @@
 from nose.tools import *
 
-from ddgrader.configger import Configger, Singleton
-from tests.util import cfg_path
+from ddgrader.configger import Configger
+from tests.util import cfg_path, reset_config
 
 
 
-# TODO this singleton stuff is hardly testable
-def clear_singleton():
-    Singleton._instances = {}
 
 
-@with_setup(clear_singleton)
+
+@with_setup(reset_config)
 def test_config_set():
     c = Configger()
     rt = c.report_thresh
@@ -19,7 +17,7 @@ def test_config_set():
     eq_(c.report_thresh, rt * 2)
 
 
-@with_setup(clear_singleton)
+@with_setup(reset_config)
 def test_config_get():
     c = Configger(cfg_path('test1.cfg'))
 

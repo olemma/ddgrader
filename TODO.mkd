@@ -12,7 +12,11 @@ Features
 * __LOW__ use a real (sqlite) DB instead of pickled files
 * __MED__ better automatic scoring/track scores
 * __LOW__ built-in rescoring
-
+* __MED__ Anonymization
+* __MED__ Report extracts surveys
+* __LOW__ Timing on grading
+* __LOW__ Easter egg ;)
+* __MED__ support unzipping directly for setup
 
 Restructuring
 =============

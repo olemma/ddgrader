@@ -20,13 +20,12 @@ class SetupCommand(Command):
         docs = load_dds()
         dest_dir = Configger().student_dir
         impl_dir = parsed.impl_dir
-        feedback_templ = Configger().feedback_template
 
         if not os.path.exists(dest_dir):
             os.mkdir(dest_dir)
 
         self.make_directories(dest_dir, docs)
-        self.setup_grading(dest_dir, docs, impl_dir, feedback_templ)
+        self.setup_grading(dest_dir, docs, impl_dir)
 
     def add_parser(self, subparser):
         parser = subparser.add_parser(self.cmd,
@@ -35,7 +34,7 @@ class SetupCommand(Command):
 
 
     @classmethod
-    def setup_grading(cls, dest, design_docs, impl_dir, template):
+    def setup_grading(cls, dest, design_docs, impl_dir):
         """Symlink each groups code into each students design document directory"""
         for doc in design_docs:
             student_folder = os.path.join(dest, doc.student.getDirectoryName())
@@ -49,18 +48,20 @@ class SetupCommand(Command):
             cls.link_dd(student_folder, doc)
 
             #copy in the grading template
-            cls.copy_template(student_folder, doc, template)
+            cls.copy_template(student_folder, doc,)
 
             #link group members design docs that come first
-            cls.link_group(dest, student_folder, doc)
+            cls.link_group(dest, student_folder, doc, Configger().partner_pattern,
+                           Configger().design_doc_name, Configger().feedback_template)
 
 
     @classmethod
-    def copy_template(cls, dest, design_doc, template):
+    def copy_template(cls, dest, design_doc):
         """Copy the grading template into each student's directory"""
-        target = os.path.join(dest, Configger().feedback_template[0])
-        if not os.path.exists(target):
-            shutil.copyfile(template, target)
+        for f in Configger().feedback_template:
+            target = os.path.join(dest, f)
+            if not os.path.exists(target):
+                shutil.copyfile(f, target)
 
 
     @classmethod
@@ -81,19 +82,26 @@ class SetupCommand(Command):
         if not os.path.exists(target):
             os.symlink(dd.path, target)
 
+
     @classmethod
-    def link_group(cls, root, dest, dd):
-        """Symlink to each group members design document if theirs would have been graded first
-        Assumes alphabetical grading
+    def link_group(cls, root, dest, dd, partner_prefix, dd_name, feedbacks):
+        """Symlink to each group members feedback, design document
         """
+
+        def add_link(src, target):
+            if os.path.lexists(target) or os.path.exists(target):  # remove broken links
+                os.unlink(target)
+            os.symlink(os.path.abspath(src), target)
+
         for i, member in enumerate(dd.group):
-            if member.eid < dd.student.eid:
-                target = os.path.join(dest, Configger().partner_pattern % (i))
-                if os.path.lexists(target) or os.path.exists(target):  # remove broken links
-                    os.unlink(target)
-                os.symlink(os.path.abspath(os.path.join(root,
-                                                        member.getDirectoryName(), Configger().feedback_template[0])),
-                           target)
+
+            partner_dd = os.path.join(dest, partner_prefix, dd_name)
+            add_link(os.path.join(root, member.getDirectoryName(), feedbacks), partner_dd)
+
+            for feedback in feedbacks:
+                add_link(os.path.join(root, member.getDirectoryName(), feedback), os.path.join(dest, partner_prefix, feedback))
+
+
 
     @classmethod
     def link_code(cls, dest, eids, impl_dir):

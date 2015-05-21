@@ -1,6 +1,7 @@
 import os
 
 from nose.tools import ok_
+from configger import Singleton, Configger
 
 from ddgrader.commands.mine import MineCommand
 from ddgrader.designdocument import DesignDocument
@@ -30,3 +31,17 @@ def get_dd(name):
 def cfg_path(name):
     """Get the path to the one test config"""
     return os.path.join('tests', 'files', 'config', name)
+
+
+def mock_config(value_dict):
+    """Create a config object and set values as specified by value_dict"""
+    config = Configger()
+
+    for key, val in value_dict:
+        config.key = val
+
+
+# TODO this singleton stuff is hardly testable
+def reset_config():
+    """Reset config by deleting all singleton instances"""
+    Singleton._instances = {}
