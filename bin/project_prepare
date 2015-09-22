@@ -32,10 +32,10 @@ import sys
 import argparse
 
 from ddgrader.designdocument import DesignDocument
-from ddgrader.commands.mine import read_design_doc
+from ddgrader.commands.mine import MineCommand
 
 
-def makePrepare(tarball, readme_paths):
+def makePrepare(tarball, readme_paths, p0_flag):
     # Create the tmp directory and untar
     tmpdir = "tmp_" + tarball
     os.makedirs(tmpdir)
@@ -67,7 +67,7 @@ def makePrepare(tarball, readme_paths):
         return None
 
     # Get the students from the README
-    readme_txt = read_design_doc(real_readme)
+    readme_txt = MineCommand.read_design_doc(real_readme)
     if not readme_txt:
         print("Failed to read README?")
         return None
@@ -90,9 +90,10 @@ def makePrepare(tarball, readme_paths):
     except:
         log.write("Folder " + newdir + " exists\n")
 
-    # TODO this is done no matter what :(?
-    p = subprocess.Popen(["cp", "-a", "/projects/cs439-norman/grading/Project0_files/.", newdir])
-    p.communicate()
+    #TODO this is dumb
+    if p0_flag:
+        p = subprocess.Popen(["cp", "-a", "/projects/cs439-norman/grading/Project0_files/.", newdir])
+        p.communicate()
 
     log.close()
 
@@ -104,6 +105,8 @@ def parse_args():
                                      epilog="Example: ./project_prepare submissions.zip implementations -r userprog/README -r userprog/README.userprog")
     parser.add_argument('zipfile', help="submissions.zip with student code from canvas")
     parser.add_argument('dest', help="destination directory to unpack to")
+    parser.add_argument('--p0', help="whether to copy some special p0 files from /projects/.../Project0_files/...",
+                        action='store_true')
     parser.add_argument('-r', '--readme', help="relative paths to try as README, (README always tried first)",
                         action='append',
                         default=['README', ])
@@ -131,7 +134,7 @@ def main():
     all_eids = set()
     cnt = 0
     for file in files:
-        eids = makePrepare(file, parsed.readme)
+        eids = makePrepare(file, parsed.readme, parsed.p0)
         if eids:
             if set(eids) & all_eids:
                 print("Student in multiple groups?")
