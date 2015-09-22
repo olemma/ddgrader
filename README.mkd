@@ -64,3 +64,30 @@ Configuration
 =============
 ddgrader uses a config file for a lot of parameters. By default it assumes "ddgrader.cfg" in the current working directory,
 but can optionally specified with `--config` parameter. Copying the one from the repo is a good place to start.
+
+
+Walkthrough
+===========
+1. Install python3 and python3-setuptools (standard on UT linux machines)
+1. Clone ddgrader via `git clone git@github.com:olemma/ddgrader.git`
+1. change into ddgrader directory `cd ddgrader` and install via `python3 setup.py develop --user`. This will install ddgrader to `~/.local/bin/ddgrader` and `~/.local/bin/project_prepare` (which you will want to add to your PATH prehaps)
+1. Run it via `ddgrader --help` to see how it works.
+2. Make a directory for the project somewhere i.e. `projx`
+3. Download the code submissions from canvas assignments, put the zip in the directory created `projx/code_submissions.zip`
+4. Download the design doc submissions from canvas assignments, extract the zip into some directory `projx/raw_docs`
+5. Copy `ddgrader.cfg` from the ddgrader folder to `projx` (this is not necessary but will let you configure it later)
+7. Run `ddgrader mine raw_docs`. This will parse the student design documents into a database-like file (`.dds.pkl`). Unfortunately, many students don't follow the design document formatting as specified, so a list of errors/warnings will be shown. See `mine` information above. Typically ERRORs and CRITICAL require editing the offending design documents. Filling out missing partner ids, etc. The parser is very lax, it requires really just a 'Name:' and 'EID:' for each member. It ignores 'Name1', etc. This might take 30min or so.
+8. Repeat previous step until no serious errors occur.
+9. At this point you can optionally use `ddgrader report slip` and `ddgrader report ranking` to get reports on slip days and poorly ranked students.
+9. Run `project_prepare code_submissions.zip implementations`. This will unpack the zipfile into an `implementations` directory, and rename the folders according to `eid1_eid2_eid3` for each group. There may be some errors if the students didn't write their EIDs when they submitted their code, which you can fix by manually renaming the folder.
+10. Create a feedback template (see `ddgrader.cfg`), perhaps called `template.txt` that has the skeleton of the comment files you will write.
+10. Run `ddgrader setup implementations`. This should create a `students/eidxx` directory for each student by eid. Inside the folder will be a copy of the template, a copy of their design doc, symlinks to their group's code and symlinks to their partners' feedbacks. There may be some warnings if matching code directory couldn't be found. Usually this is because of invalid EIDs either in their code readme or their design document, and can be fixed by updating those.
+11. Grade the design documents, putting your comments/grades in each student's `feedback.txt`. Optionally use `ddgrader grade` which loops over all students, opening an editor with the given files. Configure via `ddgrader.cfg`
+12. Once grading is complete, Download the grade spreadsheet as a CSV from canvas (ask Allison)
+13. Open the grade.csv in some sort of editor and find the index of the cell corresponding to the design document grade. Set that as `grade_column` in `ddgrader.cfg`. (This is a hack).
+ 14. Adjust the regex to `ddgrader.cfg` to extract the grade from feedback (it will search for this)
+13. Run `ddgrader collect grades.csv` to generate a new csv with the grades and a zipped feedback file.
+14. Upload both outputs back to canvas to update the grades and comments.
+
+
+

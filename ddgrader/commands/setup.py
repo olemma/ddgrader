@@ -51,7 +51,7 @@ class SetupCommand(Command):
             #copy in the grading template
             cls.copy_template(student_folder, doc, template)
 
-            #link group members design docs that come first
+            #link group members' feedbacks that come first
             cls.link_group(dest, student_folder, doc)
 
 
