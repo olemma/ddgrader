@@ -1,5 +1,0 @@
-Tools
-=====
-Testing with nosetests-3.4 in `tests` directory.
-
-Any student information should be faked/removed before adding to the git repo.
